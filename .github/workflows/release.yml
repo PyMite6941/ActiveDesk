@@ -92,7 +92,7 @@ jobs:
           mkdir release
           cp bundles/* activedesk.jar release/
           cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: release/*
       - name: Create release
