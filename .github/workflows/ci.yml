@@ -37,7 +37,7 @@ jobs:
         run: build.cmd
       - name: End-to-end self-test
         run: java -Djava.awt.headless=true -jar dist/activedesk.jar selftest
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
         with:
           name: activedesk-jar
