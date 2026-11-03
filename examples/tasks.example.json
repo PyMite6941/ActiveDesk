@@ -1,0 +1,47 @@
+{
+  "tasks": [
+    {
+      "id": "backup-notes",
+      "name": "Nightly notes backup",
+      "type": "backup",
+      "schedule": "daily 23:00",
+      "retries": 2,
+      "retryDelay": "30s",
+      "timeout": "20m",
+      "params": { "source": "~/Documents/notes", "dest": "~/Backups/notes", "keep": "14" }
+    },
+    {
+      "id": "notify-backup",
+      "name": "Tell every device the backup finished",
+      "type": "chat",
+      "schedule": "manual",
+      "dependsOn": ["backup-notes"],
+      "params": { "room": "ops", "text": "Nightly notes backup finished" }
+    },
+    {
+      "id": "status-page",
+      "name": "Scrape a page title every 30 minutes",
+      "type": "http",
+      "schedule": "every 30m",
+      "timeout": "30s",
+      "params": { "url": "https://example.com", "extract": "<title>(.*?)</title>" }
+    },
+    {
+      "id": "disk-report",
+      "name": "Disk usage (only on the Pi)",
+      "type": "shell",
+      "schedule": "daily 08:00",
+      "node": "raspberrypi",
+      "params": { "command": "df -h /" }
+    },
+    {
+      "id": "email-report",
+      "name": "Email the disk report",
+      "type": "email",
+      "schedule": "manual",
+      "dependsOn": ["disk-report"],
+      "enabled": false,
+      "params": { "to": "you@example.com", "subject": "Pi disk report", "body": "The disk report task ran. Check ActiveDesk for output." }
+    }
+  ]
+}

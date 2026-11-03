@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ActiveDesk">
+<meta name="referrer" content="no-referrer">
+<title>ActiveDesk</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<section id="login" class="login hidden">
+  <div class="card">
+    <img src="/icon.svg" alt="" class="logo">
+    <h1>ActiveDesk</h1>
+    <p class="muted" id="loginDevice">Enter this device's PIN</p>
+    <form id="loginForm" autocomplete="off">
+      <input id="pin" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="64" placeholder="PIN" required>
+      <button type="submit">Unlock</button>
+    </form>
+    <p class="error" id="loginError"></p>
+    <p class="fine">Only your own Tailscale devices can reach this page. The PIN was shown when ActiveDesk first started; run <code>activedesk pin</code> on the device to set a new one.</p>
+  </div>
+</section>
+
+<section id="app" class="hidden">
+  <header>
+    <strong id="deviceName">ActiveDesk</strong>
+    <nav>
+      <button data-tab="screen" class="active">Screen</button>
+      <button data-tab="chat">Chat</button>
+      <button data-tab="files">Files</button>
+      <button data-tab="devices">Devices</button>
+      <button data-tab="tasks">Tasks</button>
+    </nav>
+    <button id="logout" class="ghost" title="Sign out">&#x23FB;</button>
+  </header>
+
+  <main>
+    <div id="tab-screen" class="tab">
+      <div class="toolbar">
+        <button id="kbdBtn" title="Show keyboard">&#x2328; Keys</button>
+        <button data-key="enter">Enter</button>
+        <button data-key="backspace">&#x232B;</button>
+        <button data-key="esc">Esc</button>
+        <button data-key="tab">Tab</button>
+        <button id="rightBtn" title="Next tap is a right-click">Right-click</button>
+        <select id="keyMenu" title="More keys">
+          <option value="">More keys&#x2026;</option>
+          <option>win</option><option>ctrl+c</option><option>ctrl+v</option><option>ctrl+z</option>
+          <option>ctrl+a</option><option>ctrl+s</option><option>alt+tab</option><option>alt+f4</option>
+          <option>ctrl+shift+esc</option><option>win+d</option><option>win+l</option>
+          <option>up</option><option>down</option><option>left</option><option>right</option>
+          <option>pageup</option><option>pagedown</option><option>home</option><option>end</option><option>delete</option>
+          <option>f5</option><option>f11</option>
+        </select>
+        <button id="wakeDisplayBtn" title="Wake a dimmed screen / screensaver">Wake screen</button>
+        <select id="awake" title="Keep that device's screen on">
+          <option value="off">Screen: sleeps normally</option>
+          <option value="session">Screen: on while connected</option>
+          <option value="always">Screen: always on</option>
+        </select>
+        <select id="quality" title="Picture quality">
+          <option value="960:0.5">Fast</option>
+          <option value="1280:0.6" selected>Balanced</option>
+          <option value="1920:0.75">Sharp</option>
+        </select>
+        <button id="fullBtn" title="Full screen">&#x26F6;</button>
+        <a id="rdpBtn" class="button hidden" href="#" title="Windows sign-in screen via Remote Desktop">Sign-in screen (RDP)</a>
+      </div>
+      <div id="screenWrap" class="screen-wrap" tabindex="0">
+        <img id="screen" alt="Remote screen" draggable="false">
+        <p id="screenMsg" class="screen-msg">Connecting&#x2026;</p>
+      </div>
+      <textarea id="kbd" class="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="keyboard input"></textarea>
+      <p class="fine">Computer: use your mouse and keyboard on the picture (click it first). Phone: tap = click, hold = right-click, drag = drag, two fingers = scroll, &#x2328; opens the keyboard.</p>
+    </div>
+
+    <div id="tab-chat" class="tab hidden">
+      <div class="row">
+        <select id="room"></select>
+        <input id="newRoom" placeholder="new room" maxlength="32">
+        <button id="joinRoom">Join</button>
+      </div>
+      <div id="messages" class="messages"></div>
+      <form id="chatForm" class="row">
+        <input id="chatText" placeholder="Message" maxlength="4000" autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+
+    <div id="tab-files" class="tab hidden">
+      <div class="card">
+        <h3>Send a file</h3>
+        <div class="row">
+          <input id="fileInput" type="file">
+          <select id="fileTarget"></select>
+          <button id="uploadBtn">Upload</button>
+        </div>
+        <progress id="uploadProgress" max="100" value="0" class="hidden"></progress>
+        <p class="muted" id="uploadMsg"></p>
+      </div>
+      <h3>Files on this device</h3>
+      <div id="fileList" class="list"></div>
+      <h3>Recent transfers</h3>
+      <div id="transferList" class="list"></div>
+    </div>
+
+    <div id="tab-devices" class="tab hidden">
+      <div id="deviceList" class="list"></div>
+      <h3>Battery charge range (this device)</h3>
+      <div class="card">
+        <p class="muted" id="batteryMsg">Loading&#x2026;</p>
+        <div class="row" id="batteryControls">
+          <label><input type="checkbox" id="batteryOn"> Only charge between</label>
+          <input type="number" id="batteryMin" min="20" max="95" step="1" style="max-width:5em" aria-label="Minimum percent">
+          <span>% and</span>
+          <input type="number" id="batteryMax" min="25" max="100" step="1" style="max-width:5em" aria-label="Maximum percent">
+          <span>%</span>
+          <button id="batterySave">Apply</button>
+        </div>
+        <p class="fine">Applies only while ActiveDesk runs. Each computer needs a one-time <code>activedesk battery install</code> (admin/root) on that computer. To set another device, open its page from the list above.</p>
+      </div>
+    </div>
+
+    <div id="tab-tasks" class="tab hidden">
+      <p class="muted" id="tasksFile"></p>
+      <div id="taskList" class="list"></div>
+      <h3>Recent runs</h3>
+      <div id="runList" class="list"></div>
+    </div>
+  </main>
+</section>
+<div id="toast" class="toast hidden"></div>
+</body>
+</html>

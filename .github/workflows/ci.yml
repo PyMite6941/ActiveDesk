@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: ${{ matrix.os }} / Java ${{ matrix.java }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-24.04-arm = 64-bit ARM, the same CPU family as a Raspberry Pi 4/5 on 64-bit Pi OS
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+        java: ['17', '21']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Build (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: sh build.sh
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: build.cmd
+      - name: End-to-end self-test
+        run: java -Djava.awt.headless=true -jar dist/activedesk.jar selftest
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        with:
+          name: activedesk-jar
+          path: dist/activedesk.jar
+          retention-days: 14

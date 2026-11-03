@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Launcher for Linux / macOS / Raspberry Pi. Optional JDBC drivers go in lib/.
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec java -cp "$DIR/dist/activedesk.jar:$DIR/lib/*" dev.activedesk.ActiveDesk "$@"

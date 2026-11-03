@@ -1,0 +1,10 @@
+build/
+dist/
+out/
+upload/
+*.class
+lib/*.jar
+.idea/
+.vscode/
+*.iml
+.DS_Store

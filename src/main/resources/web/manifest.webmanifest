@@ -1,0 +1,13 @@
+{
+  "name": "ActiveDesk",
+  "short_name": "ActiveDesk",
+  "description": "Private chat, file transfer and remote control between your Tailscale devices",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

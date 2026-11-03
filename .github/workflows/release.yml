@@ -1,0 +1,101 @@
+name: Release
+
+# Push a tag like v1.0.0 to publish. Each bundle contains its own Java runtime, so the device needs
+# nothing installed except Tailscale.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: bundle ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }   # Raspberry Pi 4/5 (64-bit Pi OS)
+          - { os: windows-latest,   target: windows-x64 }
+          - { os: macos-latest,     target: macos-arm64 }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build jar
+        shell: bash
+        run: sh build.sh
+      - name: Self-test
+        shell: bash
+        run: java -Djava.awt.headless=true -jar dist/activedesk.jar selftest
+      - name: jpackage app image
+        shell: bash
+        run: |
+          EXTRA=""
+          if [ "$RUNNER_OS" = "Windows" ]; then EXTRA="--win-console"; fi
+          jpackage --type app-image --name ActiveDesk --app-version "${GITHUB_REF_NAME#v}" \
+            --input dist --main-jar activedesk.jar --main-class dev.activedesk.ActiveDesk \
+            --add-modules java.base,java.desktop,java.net.http,java.sql,jdk.httpserver,jdk.crypto.ec,jdk.localedata \
+            --java-options "-Dfile.encoding=UTF-8" --dest out $EXTRA || \
+          jpackage --type app-image --name ActiveDesk \
+            --input dist --main-jar activedesk.jar --main-class dev.activedesk.ActiveDesk \
+            --add-modules java.base,java.desktop,java.net.http,java.sql,jdk.httpserver,jdk.crypto.ec,jdk.localedata \
+            --java-options "-Dfile.encoding=UTF-8" --dest out $EXTRA
+      - name: Archive
+        shell: bash
+        run: |
+          mkdir -p upload
+          cd out
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a -tzip "../upload/ActiveDesk-${{ matrix.target }}.zip" ActiveDesk >/dev/null
+          else
+            tar -czf "../upload/ActiveDesk-${{ matrix.target }}.tar.gz" ActiveDesk*
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.target }}
+          path: upload/*
+
+  publish:
+    needs: bundle
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write        # create the release
+      id-token: write        # build provenance
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build portable jar (Java 17+)
+        run: sh build.sh && cp dist/activedesk.jar activedesk.jar
+      - uses: actions/download-artifact@v4
+        with:
+          path: bundles
+          merge-multiple: true
+      - name: Checksums
+        run: |
+          mkdir release
+          cp bundles/* activedesk.jar release/
+          cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/*
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "ActiveDesk $GITHUB_REF_NAME" --generate-notes
