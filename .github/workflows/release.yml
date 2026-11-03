@@ -83,7 +83,7 @@ jobs:
           java-version: '17'
       - name: Build portable jar (Java 17+)
         run: sh build.sh && cp dist/activedesk.jar activedesk.jar
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: bundles
           merge-multiple: true
