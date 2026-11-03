@@ -36,6 +36,7 @@ jobs:
         shell: cmd
         run: build.cmd
       - name: End-to-end self-test
+        shell: bash   # pwsh splits -Djava.awt.headless=true at the dot
         run: java -Djava.awt.headless=true -jar dist/activedesk.jar selftest
       - uses: actions/upload-artifact@v4
         if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
