@@ -44,3 +44,44 @@ jobs:
           name: activedesk-jar
           path: dist/activedesk.jar
           retention-days: 14
+
+  # The download installers + setup wizard, run the way a user would (minus the network download).
+  installer:
+    name: installer ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    env:
+      ACTIVEDESK_YES: '1'
+      ACTIVEDESK_HOME: ${{ github.workspace }}/adhome
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build
+        shell: bash
+        run: sh build.sh
+      - name: install.sh (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # stand-in so the runner doesn't actually install Tailscale
+          mkdir -p "$RUNNER_TEMP/fake" && printf '#!/bin/sh\nexit 1\n' > "$RUNNER_TEMP/fake/tailscale" && chmod +x "$RUNNER_TEMP/fake/tailscale"
+          PATH="$RUNNER_TEMP/fake:$PATH" ACTIVEDESK_JAR="$PWD/dist/activedesk.jar" sh install.sh
+          "$HOME/.local/bin/activedesk" version
+          grep -q 'web.pinHash=' "$ACTIVEDESK_HOME/config.properties"
+      - name: install.ps1 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:ACTIVEDESK_JAR = (Resolve-Path dist/activedesk.jar).Path
+          ./install.ps1
+          Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+          & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" version
+          if (-not (Select-String -Quiet 'web.pinHash=' "$env:ACTIVEDESK_HOME\config.properties")) { exit 1 }
