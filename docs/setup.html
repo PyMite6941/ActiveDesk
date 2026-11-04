@@ -49,8 +49,16 @@
   <section>
     <h2>Step 3 &#8212; ActiveDesk</h2>
     <div class="actions">
-      <a class="button button-primary" href="https://github.com/PyMite6941/ActiveDesk/releases">Download activedesk.jar</a>
+      <a class="button button-primary" href="https://github.com/PyMite6941/ActiveDesk/releases/tag/v1.0.0">Download v1.0.0</a>
     </div>
+    <p>Each release has a bundle per operating system (Windows, macOS, Linux, Raspberry Pi 64-bit) that includes its own Java runtime&#8212;nothing else to install except Tailscale. Bundles are in <code>bin/</code> on GitHub or as release assets:</p>
+    <ul>
+      <li><b>Windows:</b> <code>ActiveDesk-windows-x64.zip</code> (extract, run <code>activedesk.exe</code>)</li>
+      <li><b>macOS:</b> <code>ActiveDesk-macos-arm64.tar.gz</code> (extract, run <code>./activedesk</code>)</li>
+      <li><b>Linux:</b> <code>ActiveDesk-linux-x64.tar.gz</code> (extract, run <code>./activedesk</code>)</li>
+      <li><b>Raspberry Pi:</b> <code>ActiveDesk-linux-arm64.tar.gz</code> (extract, run <code>./activedesk</code>, use X11 not Wayland)</li>
+      <li><b>Any OS:</b> portable <code>activedesk.jar</code> (run <code>java -jar activedesk.jar</code>)</li>
+    </ul>
     <p>Or build it yourself: <code>./build.sh</code> (Linux/macOS/Git Bash) or <code>build.cmd</code> (Windows), which produces <code>dist/activedesk.jar</code>.</p>
     <p>Run it: <code>java -jar activedesk.jar</code>. The first start prints an <b>8-digit web PIN</b>. Write it down&#8237;—&#8237;you&#8217;ll enter it on your phone.</p>
   </section>
