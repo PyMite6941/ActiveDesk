@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ — ActiveDesk</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <nav class="wrap">
+    <a class="brand" href="index.html">ActiveDesk</a>
+    <div class="nav-links">
+      <a href="index.html">Features</a>
+      <a href="index.html#quickstart">Quick start</a>
+      <a href="setup.html">Setup</a>
+      <a href="guide.html">Guide</a>
+      <a href="faq.html" aria-current="page">FAQ</a>
+      <a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a>
+    </div>
+  </nav>
+</header>
+<main class="wrap docs-main">
+  <div class="page-crumb"><a href="index.html">ActiveDesk</a> &#8259; FAQ</div>
+  <h1>Questions</h1>
+  <p class="section-lead">Short answers, plain words.</p>
+
+  <section>
+    <h2>Is it free?</h2>
+    <p>Yes. ActiveDesk itself is free and open source. Tailscale Personal is free for individual use. The docs and installers are hosted on GitHub Pages. Java (OpenJDK) is free. Nothing requires a paid plan.</p>
+  </section>
+
+  <h2>Which operating systems work?</h2>
+    <p>Anything that runs Java 17+: Windows, macOS, Linux, and Raspberry Pi (64-bit Pi OS). Remote screen capture needs a display&#8237;—&#8237;use X11 on the Pi, not Wayland. A device without a screen still works: it offers Tailscale SSH instead.</p>
+  </section>
+
+  <section>
+    <h2>Does it work over my phone&#8217;s mobile data?</h2>
+    <p>Yes&#8237;—&#8237;as long as the phone has Tailscale on and connected. The phone reaches each device&#8217;s Tailscale address directly through the WireGuard tunnel, so mobile data or Wi-Fi both work.</p>
+  </section>
+
+  <section>
+    <h2>Is anything exposed to the internet?</h2>
+    <p>No. ActiveDesk listens only on loopback (127.0.0.1) and the device&#8217;s Tailscale IP&#8237;—&#8237;never on your LAN or the internet. Only devices signed into your Tailscale account can connect, plus any logins or tags you allow. Wrong PIN guesses are rate-limited.</p>
+  </section>
+
+  <section>
+    <h2>Can someone else on my Wi-Fi reach it?</h2>
+    <p>No. Nothing listens on LAN interfaces, so other devices on your Wi-Fi can&#8217;t connect.</p>
+  </section>
+
+  <section>
+    <h2>How is remote control secured?</h2>
+    <p>A red banner shows on the controlled screen whenever someone watches or controls it. Every login, control session, file transfer, wake and power change is written to an audit log. Sessions are bound to the client IP and expire after 30 minutes idle or 12 hours.</p>
+  </section>
+
+  <section>
+    <h2>Can I type at the Windows lock screen?</h2>
+    <p>No app can&#8237;—&#8237;Windows forbids it by design. Use <b>Sign-in screen (RDP)</b>, which downloads an <code>.rdp</code> file pointing at the Tailscale IP. Needs Windows Pro with Remote Desktop enabled.</p>
+  </section>
+
+  <section>
+    <h2>Can I charge-limit any laptop?</h2>
+    <p>Not every one. On Windows this works for ASUS and Dell (with Dell Command | Configure). Lenovo, HP, Surface and similar have no software charge-limit API. Linux works on many laptops whose kernel exposes charge-threshold files (ThinkPad, ASUS, Dell, Framework and others). macOS and desktops have no software charge limit.</p>
+  </section>
+
+  <section>
+    <h2>What if a device is asleep?</h2>
+    <p>Use <b>Wake</b> in the Devices tab. It sends a wake-on-LAN packet, relayed through any awake ActiveDesk device on the same LAN&#8237;—&#8237;so an always-on Raspberry Pi can wake your Windows laptop.</p>
+  </section>
+
+  <section>
+    <h2>Where are bugs reported?</h2>
+    <p>Use GitHub&#8217;s &#8220;Report a vulnerability&#8221; button (Security tab) for security issues. For everything else, open an issue on <a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a>.</p>
+  </section>
+
+  <div class="warning"><b>Limits:</b> remote control runs with your own user rights, so OS lock screens and UAC prompts can&#8217;t be automated. Tailscale is part of the trust base&#8237;—&#8237;whoever controls your Tailscale account decides which devices count as yours.</div>
+</main>
+<footer>
+  <div class="wrap">
+    <div>ActiveDesk &#8212; private remote control over Tailscale</div>
+    <div><a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a> &#8226; <a href="setup.html">Setup</a> &#8226; <a href="guide.html">Guide</a></div>
+  </div>
+</footer>
+</body>
+</html>

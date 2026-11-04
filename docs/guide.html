@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide — ActiveDesk</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <nav class="wrap">
+    <a class="brand" href="index.html">ActiveDesk</a>
+    <div class="nav-links">
+      <a href="index.html">Features</a>
+      <a href="index.html#quickstart">Quick start</a>
+      <a href="setup.html">Setup</a>
+      <a href="guide.html" aria-current="page">Guide</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a>
+    </div>
+  </nav>
+</header>
+<main class="wrap docs-main">
+  <div class="page-crumb"><a href="index.html">ActiveDesk</a> &#8259; Guide</div>
+  <h1>How to use it</h1>
+  <p class="section-lead">Open <code>http://&lt;device&gt;:47801</code> from your phone&#8217;s browser over Tailscale, enter the PIN, and use the tabs below.</p>
+
+  <section>
+    <h2>Screen &#8212; remote view and control</h2>
+    <figure>
+      <img src="img/screen-phone.png" alt="Screen tab on a phone showing the remote desktop">
+      <figcaption>Control a computer&#8217;s screen from your phone</figcaption>
+    </figure>
+    <p>Tap = click, hold = right-click, drag = drag, two fingers = scroll. Tap &#x2328; to open the on-screen keyboard. The toolbar lets you tap Enter, Esc, Wake screen, choose Keep screen on (off / session / always), and picture quality.</p>
+    <p><b>Keep screen on:</b> <i>session</i> (default) keeps the display on while someone is connected; <i>always</i> keeps it on until you change it; <i>off</i> lets the device sleep normally.</p>
+    <p><b>Windows lock screen:</b> no app can type at it by design. Use <b>Sign-in screen (RDP)</b> from the Devices tab, which downloads an <code>.rdp</code> file pointing at the Tailscale IP. Needs Windows Pro with Remote Desktop on, and Microsoft&#8217;s &#8220;Windows App&#8221; on phone.</p>
+  </section>
+
+  <section>
+    <h2>Headless device? Use Tailscale SSH</h2>
+    <figure>
+      <img src="img/noscreen-desktop.png" alt="No-screen fallback showing a tailscale ssh command">
+      <figcaption>A device with no screen shows a Tailscale SSH command instead</figcaption>
+    </figure>
+    <p>If a device has no screen (a headless Pi, a server), the Screen tab offers a copyable <code>tailscale ssh user@host</code> command. From a phone, use any free SSH app (e.g. Termius) with the host and user shown&#8237;—&#8237;no password or keys to copy.</p>
+    <p>Windows can&#8217;t be a Tailscale SSH server. Turn on the built-in OpenSSH Server (Settings &#8594; System &#8594; Optional features) and use the same command with <code>ssh</code>.</p>
+  </section>
+
+  <section>
+    <h2>Chat &amp; Files</h2>
+    <figure>
+      <img src="img/chat-phone.png" alt="Chat tab on a phone">
+      <figcaption>Chat between your devices</figcaption>
+    </figure>
+    <p>Send messages between devices, create rooms, and transfer files with SHA-256 verification. Files sent to a device appear in its Files tab and can be downloaded or forwarded to another device.</p>
+  </section>
+
+  <section>
+    <h2>Devices</h2>
+    <figure>
+      <img src="img/devices-phone.png" alt="Devices list on a phone">
+      <figcaption>See every device on your tailnet</figcaption>
+    </figure>
+    <p>Shows this device, other ActiveDesk devices online, asleep devices you can wake, and other Tailscale devices without ActiveDesk. Use <b>Wake</b> to send a wake-on-LAN packet (relayed through any awake device on the same LAN&#8237;—&#8237;an always-on Pi works well for this).</p>
+  </section>
+
+  <section>
+    <h2>Power &amp; Battery</h2>
+    <figure>
+      <img src="img/power-phone.png" alt="Power tab on a phone">
+      <figcaption>Power mode, brightness and battery charge range</figcaption>
+    </figure>
+    <p>The Battery section appears <b>only when the device has a battery</b>. Set a charge range (e.g. 40&#8211;80&#8237;%) so the laptop only charges between those levels&#8237;—&#8237;and only while ActiveDesk runs. When it stops, normal charging returns.</p>
+    <p>The one-time setup needs admin once (UAC on Windows, sudo on Linux). The Auto power saver switches to a power-saving mode and dims when on battery and below a percentage you choose, then restores your settings when you plug in.</p>
+    <div class="warning"><b>Charge limits are hardware-dependent.</b> On Windows this works for ASUS (ATK WMI) and Dell (with Dell Command | Configure). Lenovo, HP, Surface and similar have no software charge-limit API&#8237;—&#8237;use the vendor&#8217;s app or BIOS setting. macOS has no charge limit and no app-controlled brightness.</div>
+  </section>
+
+  <section>
+    <h2>iPhone &#8594; Raspberry Pi + Windows laptop</h2>
+    <p>Install ActiveDesk on the Pi (X11 session, not Wayland) and on the Windows laptop, both signed into the same Tailscale account. From your phone:</p>
+    <ol>
+      <li>Open <code>http://&lt;pi-or-laptop&gt;:47801</code> and enter that device&#8217;s PIN.</li>
+      <li>Use the <b>Screen</b> tab to view and control either machine.</li>
+      <li>Use the <b>Devices</b> tab to see both machines and wake either one if it&#8217;s asleep.</li>
+    </ol>
+    <p>Both devices must be running ActiveDesk and Tailscale at the same time to reach each other.</p>
+  </section>
+
+  <section>
+    <h2>Scheduler</h2>
+    <p>Define tasks in <code>~/.activedesk/tasks.json</code> (edits reload automatically). Schedule types: <code>manual</code>, <code>startup</code>, <code>every 30s / 15m / 2h / 1d</code>, <code>daily HH:MM</code>. Actions: <code>shell</code>, <code>http</code>, <code>backup</code> (zip), <code>email</code> (SMTP over TLS), <code>chat</code>. Tasks can depend on other tasks (a DAG), with retries, backoff and timeouts.</p>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <div>ActiveDesk &#8212; private remote control over Tailscale</div>
+    <div><a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a> &#8226; <a href="setup.html">Setup</a> &#8226; <a href="faq.html">FAQ</a></div>
+  </div>
+</footer>
+</body>
+</html>

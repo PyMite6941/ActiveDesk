@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup — ActiveDesk</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <nav class="wrap">
+    <a class="brand" href="index.html">ActiveDesk</a>
+    <div class="nav-links">
+      <a href="index.html">Features</a>
+      <a href="index.html#quickstart">Quick start</a>
+      <a href="setup.html" aria-current="page">Setup</a>
+      <a href="guide.html">Guide</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a>
+    </div>
+  </nav>
+</header>
+<main class="wrap docs-main">
+  <div class="page-crumb"><a href="index.html">ActiveDesk</a> &#8259; Setup</div>
+  <h1>Install on every device</h1>
+  <p class="section-lead">Install Tailscale and ActiveDesk on each device you want to reach, all signed into the same Tailscale account.</p>
+
+  <section>
+    <h2>Step 1 &#8212; Tailscale</h2>
+    <p>Install Tailscale on every device and sign in to the same account:</p>
+    <ul>
+      <li><b>Windows / macOS:</b> download from <a href="https://tailscale.com/download">tailscale.com/download</a>, or <code>winget install Tailscale.Tailscale</code> on Windows and <code>brew install --cask tailscale</code> on macOS.</li>
+      <li><b>Raspberry Pi / Debian / Ubuntu:</b> <code>curl -fsSL https://tailscale.com/install.sh | sh</code>, then <code>sudo tailscale up</code>.</li>
+      <li><b>iPhone:</b> install the Tailscale app from the App Store and sign in.</li>
+    </ul>
+    <p>Once signed in, each device gets a <code>100.x.y.z</code> tailnet address. That&#8217;s what ActiveDesk uses to reach it&#8237;—&#8237;nothing is exposed to your LAN or the internet.</p>
+  </section>
+
+  <section>
+    <h2>Step 2 &#8212; Java 17+</h2>
+    <p>ActiveDesk needs Java 17 or newer.</p>
+    <ul>
+      <li><b>Windows:</b> <code>winget install EclipseAdoptium.Temurin.21.JRE</code></li>
+      <li><b>macOS:</b> <code>brew install --cask temurin</code></li>
+      <li><b>Raspberry Pi / Debian / Ubuntu:</b> <code>sudo apt install openjdk-17-jre</code></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Step 3 &#8212; ActiveDesk</h2>
+    <div class="actions">
+      <a class="button button-primary" href="https://github.com/PyMite6941/ActiveDesk/releases">Download activedesk.jar</a>
+    </div>
+    <p>Or build it yourself: <code>./build.sh</code> (Linux/macOS/Git Bash) or <code>build.cmd</code> (Windows), which produces <code>dist/activedesk.jar</code>.</p>
+    <p>Run it: <code>java -jar activedesk.jar</code>. The first start prints an <b>8-digit web PIN</b>. Write it down&#8237;—&#8237;you&#8217;ll enter it on your phone.</p>
+  </section>
+
+  <section>
+    <h2>Step 4 &#8212; Open from your phone</h2>
+    <ol>
+      <li>On the iPhone, open the Tailscale app and make sure it&#8217;s connected.</li>
+      <li>Open Safari and go to <code>http://&lt;device-name&gt;:47801</code> or <code>http://100.x.y.z:47801</code>&#8237;—&#8237;for example <code>http://100.65.117.75:47801</code>.</li>
+      <li>Enter the 8-digit PIN shown when ActiveDesk started.</li>
+      <li>Tap the share button &#8599; then &#8220;Add to Home Screen.&#8221; It now works like an app.</li>
+    </ol>
+    <p>For HTTPS (needed if you want the phone to keep its own screen on while viewing), run <code>tailscale serve --bg 47801</code> on the device and open <code>https://&lt;device&gt;.&lt;tailnet&gt;.ts.net</code>.</p>
+  </section>
+
+  <div class="code-card">
+    <div class="code-top">One-line install (Linux / Pi / macOS)</div>
+    <pre><span class="prompt">$</span> curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh</pre>
+  </div>
+  <div class="code-card" style="margin-top: 14px;">
+    <div class="code-top">One-line install (Windows PowerShell)</div>
+    <pre><span class="prompt">&gt;</span> irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex</pre>
+  </div>
+
+  <div class="tip"><b>One-time setup:</b> battery charge limits and Windows power modes need admin once. The installer offers to run <code>activedesk setup</code>, which walks you through Tailscale, the screen check, device name, PIN and autostart.</div>
+
+  <div class="warning"><b>Raspberry Pi:</b> use the X11 desktop session, not Wayland&#8237;—&#8237;<code>sudo raspi-config</code> &#8594; Advanced &#8594; Wayland &#8594; X11. Screen capture does not work under Wayland.</div>
+</main>
+<footer>
+  <div class="wrap">
+    <div>ActiveDesk &#8212; private remote control over Tailscale</div>
+    <div><a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a> &#8226; <a href="index.html">Features</a> &#8226; <a href="guide.html">Guide</a></div>
+  </div>
+</footer>
+</body>
+</html>

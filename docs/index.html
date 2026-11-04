@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ActiveDesk — Use all your devices from your phone</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <nav class="wrap">
+    <a class="brand" href="index.html">ActiveDesk</a>
+    <div class="nav-links">
+      <a href="index.html">Features</a>
+      <a href="index.html#quickstart">Quick start</a>
+      <a href="setup.html">Setup</a>
+      <a href="guide.html">Guide</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a>
+    </div>
+  </nav>
+</header>
+<main class="wrap">
+  <div class="hero">
+    <p class="eyebrow">Private device mesh over Tailscale</p>
+    <h1>Use all your devices from your phone</h1>
+    <p class="lead">One small Java program on every laptop, desktop and Raspberry Pi. No server, no cloud account, nothing opens to the internet. Control screens, move files, chat and manage battery charge from your phone&#8217;s browser — peer to peer over your Tailscale tailnet.</p>
+    <div class="actions">
+      <a class="button button-primary" href="setup.html">Install</a>
+      <a class="button" href="guide.html">Guide</a>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top: 56px;">
+    <figure style="text-align:center;">
+      <img src="img/screen-phone.png" alt="ActiveDesk screen tab on a phone">
+      <figcaption>Remote screen from your phone</figcaption>
+    </figure>
+    <figure style="text-align:center;">
+      <img src="img/chat-phone.png" alt="ActiveDesk chat tab on a phone">
+      <figcaption>Chat between devices</figcaption>
+    </figure>
+    <figure style="text-align:center;">
+      <img src="img/files-desktop.png" alt="ActiveDesk files tab">
+      <figcaption>Send and receive files</figcaption>
+    </figure>
+  </div>
+
+  <section id="quickstart">
+    <h2>Quick start</h2>
+    <p class="section-lead">Three steps, then you&#8217;re up and running.</p>
+    <div class="grid">
+      <div class="feature">
+        <h3>1. Tailscale on every device</h3>
+        <p>Install Tailscale on your phone, Windows laptop, Raspberry Pi and any other device. Sign in to the same account so they share one tailnet.</p>
+      </div>
+      <div class="feature">
+        <h3>2. Install ActiveDesk</h3>
+        <p>Get the portable <code>activedesk.jar</code> from <a href="https://github.com/PyMite6941/ActiveDesk/releases">Releases</a>, or build it with <code>./build.sh</code>. Java 17+ is the only requirement.</p>
+      </div>
+      <div class="feature">
+        <h3>3. Open it from your phone</h3>
+        <p>Run ActiveDesk, note the 8-digit PIN it prints, then open <code>http://&lt;device&gt;:47801</code> from your phone&#8217;s browser over Tailscale. Enter the PIN and tap &#8220;Add to Home Screen.&#8221;</p>
+      </div>
+    </div>
+
+    <div class="code-card">
+      <div class="code-top">One-line install</div>
+      <pre><span class="prompt">$</span> curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh</pre>
+      <pre><span class="prompt">&gt;</span> irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex</pre>
+    </div>
+  </section>
+
+  <figure style="margin: 56px 0 28px; text-align:center;">
+    <img src="img/devices-phone.png" alt="ActiveDesk devices list on a phone">
+    <figcaption>See every device on your tailnet from your phone</figcaption>
+  </figure>
+
+  <section>
+    <h2>What it does</h2>
+    <p class="section-lead">Everything runs peer to peer. Your devices find each other over Tailscale; nothing ever listens on your LAN or the internet.</p>
+    <div class="grid">
+      <div class="feature">
+        <h3>Remote screen</h3>
+        <p>View and control a computer&#8217;s screen from your phone. Tap to click, hold to right-click, drag, two fingers to scroll. A red banner shows whenever someone is watching.</p>
+      </div>
+      <div class="feature">
+        <h3>Chat &amp; files</h3>
+        <p>Message between devices and send files with SHA-256 verification. Works as a fallback with plain <code>nc</code> too.</p>
+      </div>
+      <div class="feature">
+        <h3>Battery &amp; power</h3>
+        <p>Keep a laptop charged only between 40&#8211;80&#8237;%, set power modes, adjust brightness and run an auto power saver&#8237;—&#8237;only while ActiveDesk runs.</p>
+      </div>
+      <div class="feature">
+        <h3>Wake devices</h3>
+        <p>Wake a sleeping computer over your LAN through any awake ActiveDesk device. Useful when your Raspberry Pi is always on.</p>
+      </div>
+      <div class="feature">
+        <h3>Keep screen on</h3>
+        <p>Stop a device blanking or locking while you&#8217;re controlling it&#8237;—&#8237;session mode (while connected), always (kiosk), or off.</p>
+      </div>
+      <div class="feature">
+        <h3>Scheduler</h3>
+        <p>Run backups, HTTP scrapes, shell commands and more on a schedule, with dependencies, retries and timeouts.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="note">All free: Tailscale Personal, GitHub Pages and OpenJDK cost nothing. The only thing you need is the same Tailscale account on every device.</div>
+</main>
+<footer>
+  <div class="wrap">
+    <div>ActiveDesk &#8212; private remote control over Tailscale</div>
+    <div><a href="https://github.com/PyMite6941/ActiveDesk">GitHub</a> &#8226; <a href="setup.html">Install</a> &#8226; <a href="guide.html">Guide</a></div>
+  </div>
+</footer>
+</body>
+</html>
