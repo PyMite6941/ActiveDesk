@@ -40,6 +40,8 @@ public final class ActiveDesk {
             case "awake" -> System.exit(local(List.of("/awake" + (rest.isEmpty() ? "" : " " + rest.get(0))),
                     l -> l.startsWith("OK") || l.startsWith("ERR"), 10_000) ? 0 : 1);
             case "battery" -> battery(rest);
+            case "power" -> power(rest);
+            case "setup" -> Setup.run(rest);
             case "run-task" -> {
                 if (rest.isEmpty()) usage();
                 System.exit(local(List.of("/run " + rest.get(0)), l -> l.startsWith("OK") || l.startsWith("ERR"), 10_000) ? 0 : 1);
@@ -55,11 +57,30 @@ public final class ActiveDesk {
         }
     }
 
+    private static void power(List<String> rest) throws Exception {
+        String sub = rest.isEmpty() ? "status" : rest.get(0).toLowerCase(Locale.ROOT);
+        Predicate<String> done = l -> l.startsWith("OK") || l.startsWith("ERR");
+        switch (sub) {
+            case "install" -> System.exit(dev.activedesk.power.PowerSetup.install(Config.load(), true, System.out::println));
+            case "uninstall" -> System.exit(dev.activedesk.power.PowerSetup.uninstall(Config.load(), true, System.out::println));
+            case "status" -> System.exit(local(List.of("/power"), done, 15_000) ? 0 : 1);
+            case "mode", "brightness" -> {
+                if (rest.size() != 2 || !rest.get(1).matches("[A-Za-z0-9._{}-]{1,80}")) usage();
+                System.exit(local(List.of("/power " + sub + " " + rest.get(1)), done, 20_000) ? 0 : 1);
+            }
+            case "saver" -> {
+                if (rest.size() < 2 || rest.size() > 3 || !String.join(" ", rest.subList(1, rest.size())).matches("off|[0-9]{1,2}( [0-9]{1,3})?")) usage();
+                System.exit(local(List.of("/power saver " + String.join(" ", rest.subList(1, rest.size()))), done, 20_000) ? 0 : 1);
+            }
+            default -> usage();
+        }
+    }
+
     private static void battery(List<String> rest) throws Exception {
         String sub = rest.isEmpty() ? "status" : rest.get(0).toLowerCase(java.util.Locale.ROOT);
         switch (sub) {
-            case "install" -> System.exit(dev.activedesk.power.BatteryService.install(Config.load()));
-            case "uninstall" -> System.exit(dev.activedesk.power.BatteryService.uninstall(Config.load()));
+            case "install" -> System.exit(dev.activedesk.power.PowerSetup.install(Config.load(), true, System.out::println));
+            case "uninstall" -> System.exit(dev.activedesk.power.PowerSetup.uninstall(Config.load(), true, System.out::println));
             case "status" -> System.exit(local(List.of("/battery"), l -> l.startsWith("OK") || l.startsWith("ERR"), 15_000) ? 0 : 1);
             case "on", "off" -> System.exit(local(List.of("/battery " + sub), l -> l.startsWith("OK") || l.startsWith("ERR"), 15_000) ? 0 : 1);
             default -> {
@@ -82,7 +103,9 @@ public final class ActiveDesk {
                 "  activedesk run-task <id>       run a task (and its dependencies) now",
                 "  activedesk lock                end every remote-control / web session now",
                 "  activedesk awake [off|session|always]  keep the screen on (session = while being controlled)",
-                "  activedesk battery install     one-time admin/root setup so this computer's charging can be paused",
+                "  activedesk setup               guided first-time setup (PIN, Tailscale check, autostart, power)",
+                "  activedesk power install       one-time admin/root setup for power mode, brightness and charge limits",
+                "  activedesk power [status|mode <id>|brightness <1-100>|saver off|saver <below%> [dim%]]",
                 "  activedesk battery <min> <max> only charge between min% and max% while ActiveDesk runs (e.g. 40 80)",
                 "  activedesk battery on|off|status|uninstall",
                 "  activedesk pin                 set a new web PIN (old sessions keep working until 'lock')",

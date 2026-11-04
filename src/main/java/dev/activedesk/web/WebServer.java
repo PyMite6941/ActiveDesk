@@ -173,6 +173,12 @@ public final class WebServer {
                 json(ex, e.code, Json.o("error", e.getMessage()));
             } catch (IOException ignored) {
             }
+        } catch (IllegalArgumentException e) {
+            // validation messages we wrote ourselves (bad range, unknown mode ...)
+            try {
+                json(ex, 400, Json.o("error", e.getMessage() == null ? "bad request" : e.getMessage()));
+            } catch (IOException ignored) {
+            }
         } catch (Exception e) {
             Log.error("web handler error", e);
             try {
@@ -338,8 +344,32 @@ public final class WebServer {
                 int min = (int) Json.num(b, "min", node.battery().min()), max = (int) Json.num(b, "max", node.battery().max());
                 String bad = dev.activedesk.power.BatteryService.invalid(min, max);
                 if (bad != null) throw new HttpError(400, bad);
-                node.setBattery(en, min, max, s.who());
+                powerOp(() -> node.setBattery(en, min, max, s.who()));
                 json(ex, 200, Json.o("ok", true, "battery", node.battery().state()));
+            }
+            case "POST /api/power/profile" -> {
+                viewOnlyGuard();
+                String id = Json.str(readJson(ex), "id", "");
+                powerOp(() -> node.setPowerProfile(id, s.who()));
+                json(ex, 200, Json.o("ok", true, "power", node.power().state()));
+            }
+            case "POST /api/power/brightness" -> {
+                viewOnlyGuard();
+                int v = (int) Json.num(readJson(ex), "value", -1);
+                powerOp(() -> node.setBrightness(v, s.who()));
+                json(ex, 200, Json.o("ok", true, "power", node.power().state()));
+            }
+            case "POST /api/power/saver" -> {
+                viewOnlyGuard();
+                Map<String, Object> b = readJson(ex);
+                powerOp(() -> node.setPowerSaver(Json.bool(b, "enabled", false), (int) Json.num(b, "below", 25),
+                        Json.str(b, "profile", ""), (int) Json.num(b, "brightness", 0), s.who()));
+                json(ex, 200, Json.o("ok", true, "power", node.power().state()));
+            }
+            case "POST /api/power/setup" -> {
+                viewOnlyGuard();
+                if (!node.startPowerSetup(s.who())) throw new HttpError(429, "setup is already running");
+                json(ex, 202, Json.o("ok", true, "status", node.powerSetupStatus()));
             }
             case "POST /api/keepawake" -> {
                 String m = Json.str(readJson(ex), "mode", "");
@@ -349,6 +379,21 @@ public final class WebServer {
             }
             default -> throw new HttpError(404, "not found");
         }
+    }
+
+    private interface PowerOp { void run() throws IOException; }
+
+    /** OS refused the change (needs setup, tool failed): tell the user why instead of "internal error". */
+    private static void powerOp(PowerOp op) {
+        try {
+            op.run();
+        } catch (IOException e) {
+            throw new HttpError(409, e.getMessage());
+        }
+    }
+
+    private void viewOnlyGuard() {
+        if (node.config().getBool("control.viewOnly")) throw new HttpError(403, "this device is view-only");
     }
 
     private static String shortWho(String who) {
@@ -388,11 +433,16 @@ public final class WebServer {
                 "rdp", selfRdp, "selfIp", st.self() == null ? "" : String.valueOf(st.self().ipv4()),
                 "os", System.getProperty("os.name"), "version", dev.activedesk.net.Hub.VERSION,
                 "tailscale", st.backendState(),
+                "user", System.getProperty("user.name", ""), "selfName", st.self() == null ? "" : st.self().displayName(),
                 "screen", node.screen().available(), "screenReason", node.screen().unavailableReason() == null ? "" : node.screen().unavailableReason(),
                 "viewOnly", node.config().getBool("control.viewOnly"),
                 "keepAwake", node.keepAwake().mode().name().toLowerCase(java.util.Locale.ROOT),
                 "keepAwakeHolding", node.keepAwake().holding(),
+                "keepAwakeMethod", node.keepAwake().method(),
+                "keepAwakeNudgeAgo", node.keepAwake().lastNudge() == 0 ? -1 : (System.currentTimeMillis() - node.keepAwake().lastNudge()) / 1000,
                 "battery", node.battery().state(),
+                "power", node.power().state(),
+                "powerSetup", node.powerSetupStatus(),
                 "peers", peers, "tailnet", tailnet, "rooms", node.chat().rooms());
     }
 
@@ -475,7 +525,7 @@ public final class WebServer {
             Map<String, Object> m = new LinkedHashMap<>(t.toJson());
             m.remove("params"); // params may contain paths/commands; the file is the place to read them
             ZonedDateTime next = node.scheduler().nextFire(t.id());
-            m.put("next", next == null ? "" : next.toString());
+            m.put("next", next == null ? 0 : next.toInstant().toEpochMilli()); // epoch ms: browsers cannot parse "[Zone/Id]"
             m.put("running", node.scheduler().isRunning(t.id()));
             List<TaskRun> last = node.scheduler().runLog().recentFor(t.id(), 1);
             m.put("last", last.isEmpty() ? null : last.get(0).toJson());

@@ -82,6 +82,10 @@ public final class Config {
         dirty |= def("battery.enabled", "false");
         dirty |= def("battery.min", "40");
         dirty |= def("battery.max", "80");
+        dirty |= def("power.saver.enabled", "false");
+        dirty |= def("power.saver.below", "25");
+        dirty |= def("power.saver.profile", "");
+        dirty |= def("power.saver.brightness", "0");
         if (p.getProperty("web.pinHash", "").isBlank()) {
             resetPin();
             dirty = true;
