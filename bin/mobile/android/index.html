@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ActiveDesk — Install on Android</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0b1015; color: #e8eef5; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 32px 20px; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }
+  .card { background: #141a22; border: 1px solid #2e3a4a; border-radius: 20px; padding: 32px; text-align: center; }
+  .icon { width: 120px; height: 120px; border-radius: 30px; margin: 0 auto 24px; display: block; }
+  h1 { font-size: 26px; margin: 0 0 12px; }
+  .muted { color: #8ba3b8; font-size: 15px; margin: 0 0 24px; line-height: 1.6; }
+  ol { text-align: left; color: #e8eef5; padding-left: 20px; margin: 0 0 24px; line-height: 1.8; }
+  ol li { margin-bottom: 10px; }
+  code { background: #1b232d; color: #73e0bd; padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 14px; }
+  .button { display: inline-block; background: #73e0bd; color: #031a22; border: none; border-radius: 12px; padding: 14px 28px; font-size: 17px; font-weight: 700; text-decoration: none; margin: 10px 0; }
+  .button.secondary { background: transparent; color: #73e0bd; border: 1px solid #73e0bd; }
+  .note { background: #1b232d; border-left: 4px solid #f59e0b; padding: 14px; border-radius: 8px; font-size: 14px; color: #8ba3b8; margin-top: 24px; text-align: left; }
+  .badge { display: inline-block; background: #22c55e; color: #031a22; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; margin-bottom: 12px; letter-spacing: .06em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <img src="https://pymite6941.github.io/ActiveDesk/icon.svg" alt="ActiveDesk" class="icon">
+    <div class="badge">Free &#8212; no sign-up required</div>
+    <h1>ActiveDesk</h1>
+    <p class="muted">Remote control your Windows laptop and Raspberry Pi from your Android phone. Private, peer-to-peer over Tailscale&#8212;no server, no cloud.</p>
+
+    <h2 style="font-size:16px;margin:24px 0 12px;color:#8ba3b8;text-align:left;">Install on your Android phone</h2>
+    <ol>
+      <li>Install the <b>Tailscale</b> app from Google Play and sign in with the same account as your computers.</li>
+      <li>Open Chrome and go to your device&#8217;s ActiveDesk address, e.g. <code>http://100.x.y.z:47801</code>.</li>
+      <li>Enter the 8-digit PIN shown when ActiveDesk started on your computer.</li>
+      <li>Tap the <b>three-dot menu</b> (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>) then choose <b>&#8220;Add to Home screen&#8221;</b>.</li>
+    </ol>
+
+    <a class="button" href="https://pymite6941.github.io/ActiveDesk/">Open ActiveDesk</a>
+    <a class="button secondary" href="https://tailscale.com/download">Get Tailscale for Android</a>
+
+    <div class="note">
+      <strong>No Google Play needed for ActiveDesk itself.</strong> It is a web app&#8212;once added to your Home Screen it works like a native app, with its own icon. Keep Tailscale running in the background so you can reach your computers from anywhere.
+    </div>
+  </div>
+</div>
+</body>
+</html>
