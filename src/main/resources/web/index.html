@@ -39,12 +39,26 @@
       <button data-tab="files">Files</button>
       <button data-tab="devices">Devices</button>
       <button data-tab="tasks">Tasks</button>
+      <button data-tab="power">Power</button>
     </nav>
     <button id="logout" class="ghost" title="Sign out">&#x23FB;</button>
   </header>
 
   <main>
     <div id="tab-screen" class="tab">
+      <div id="noScreen" class="card hidden">
+        <h2>This device has no screen</h2>
+        <p class="muted" id="noScreenWhy"></p>
+        <p>Use a terminal instead, with <b>Tailscale SSH</b> (free, no passwords or keys to copy):</p>
+        <div class="row"><code id="sshCmd" class="cmd"></code><button id="sshCopy">Copy</button></div>
+        <ol class="steps">
+          <li>Once, on this device: <code>sudo tailscale set --ssh</code></li>
+          <li>From a computer with Tailscale: paste the command above into a terminal.</li>
+          <li>From a phone: any free SSH app (e.g. Termius) &#x2192; host <code id="sshHost"></code>, user <code id="sshUser"></code>, no password.</li>
+        </ol>
+        <p class="fine" id="sshWinNote">Windows can't be a Tailscale SSH server. Turn on the free built-in <i>OpenSSH Server</i> (Settings &#x2192; System &#x2192; Optional features) and use the same command with <code>ssh</code>.</p>
+      </div>
+      <div id="screenArea">
       <div class="toolbar">
         <button id="kbdBtn" title="Show keyboard">&#x2328; Keys</button>
         <button data-key="enter">Enter</button>
@@ -81,6 +95,7 @@
       </div>
       <textarea id="kbd" class="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="keyboard input"></textarea>
       <p class="fine">Computer: use your mouse and keyboard on the picture (click it first). Phone: tap = click, hold = right-click, drag = drag, two fingers = scroll, &#x2328; opens the keyboard.</p>
+      </div>
     </div>
 
     <div id="tab-chat" class="tab hidden">
@@ -115,19 +130,61 @@
 
     <div id="tab-devices" class="tab hidden">
       <div id="deviceList" class="list"></div>
-      <h3>Battery charge range (this device)</h3>
-      <div class="card">
-        <p class="muted" id="batteryMsg">Loading&#x2026;</p>
-        <div class="row" id="batteryControls">
-          <label><input type="checkbox" id="batteryOn"> Only charge between</label>
-          <input type="number" id="batteryMin" min="20" max="95" step="1" style="max-width:5em" aria-label="Minimum percent">
-          <span>% and</span>
-          <input type="number" id="batteryMax" min="25" max="100" step="1" style="max-width:5em" aria-label="Maximum percent">
-          <span>%</span>
-          <button id="batterySave">Apply</button>
-        </div>
-        <p class="fine">Applies only while ActiveDesk runs. Each computer needs a one-time <code>activedesk battery install</code> (admin/root) on that computer. To set another device, open its page from the list above.</p>
+    </div>
+
+    <div id="tab-power" class="tab hidden">
+      <p class="muted">Settings for <b id="powerDevice">this device</b>. To change another device, open it from Devices.</p>
+      <div class="card" id="powerSetupCard">
+        <p id="powerSetupMsg">Some settings need a one-time permission on this device.</p>
+        <button id="powerSetupBtn">Set up</button>
+        <p class="fine">The admin/password prompt appears on the device itself, so someone must approve it there once.</p>
       </div>
+
+      <h3>Power</h3>
+      <div class="card">
+        <p id="powerStatus" class="muted">Loading&#x2026;</p>
+        <div class="field" id="modeField">
+          <label for="powerMode">Power mode</label>
+          <select id="powerMode"></select>
+        </div>
+        <div class="field" id="brightField">
+          <label for="brightness">Screen brightness <span id="brightVal"></span></label>
+          <input type="range" id="brightness" min="1" max="100" step="1">
+        </div>
+        <p class="fine" id="powerNone">This device doesn't offer power modes or brightness control to apps.</p>
+      </div>
+
+      <div id="batterySection">
+        <h3>Battery</h3>
+        <div class="card">
+          <p class="muted" id="batteryMsg">Loading&#x2026;</p>
+          <div id="batteryControls">
+            <label class="check"><input type="checkbox" id="batteryOn"> Protect the battery: only charge between</label>
+            <div class="row">
+              <input type="number" id="batteryMin" min="20" max="95" step="1" class="num" aria-label="Minimum percent">
+              <span>% and</span>
+              <input type="number" id="batteryMax" min="25" max="100" step="1" class="num" aria-label="Maximum percent">
+              <span>%</span>
+              <button id="batterySave">Apply</button>
+            </div>
+            <p class="fine">Works only while ActiveDesk runs. When it stops, normal charging comes back.</p>
+          </div>
+        </div>
+
+        <h3>Auto power saver</h3>
+        <div class="card">
+          <label class="check"><input type="checkbox" id="saverOn"> When on battery and at or below <input type="number" id="saverBelow" min="5" max="95" class="num" aria-label="Percent"> %</label>
+          <div class="row">
+            <span>switch to</span>
+            <select id="saverProfile"><option value="">the most power-saving mode</option></select>
+            <span>and dim to</span>
+            <input type="number" id="saverDim" min="0" max="100" class="num" aria-label="Dim to percent"><span>% (0 = don't dim)</span>
+          </div>
+          <div class="row"><button id="saverSave">Apply</button><span class="muted" id="saverMsg"></span></div>
+          <p class="fine">Plugging in puts your previous mode and brightness back.</p>
+        </div>
+      </div>
+      <p class="muted hidden" id="noBattery">This device has no battery, so battery options are hidden.</p>
     </div>
 
     <div id="tab-tasks" class="tab hidden">

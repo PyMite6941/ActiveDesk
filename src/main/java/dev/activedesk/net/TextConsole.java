@@ -60,7 +60,7 @@ public final class TextConsole {
                     "/files           recent transfers",
                     "/tasks           scheduled tasks",
                     "/quit            leave",
-                    "local only (after /auth): /send <device> <path>, /run <task>, /lock, /awake off|session|always, /battery [on|off|<min> <max>]"));
+                    "local only (after /auth): /send <device> <path>, /run <task>, /lock, /awake off|session|always, /battery [on|off|<min> <max>], /power [mode <id>|brightness <n>|saver off|saver <below> [dim]]"));
             case "/join" -> {
                 String r = ChatService.validRoom(a1);
                 if (r == null) { say(c, "! room names: a-z 0-9 - _ (max 32)"); return; }
@@ -123,7 +123,7 @@ public final class TextConsole {
                 if (!privileged(c)) return;
                 if (a1 == null || !a1.matches("off|session|always")) {
                     say(c, "OK keep-awake is " + node.keepAwake().mode().name().toLowerCase(java.util.Locale.ROOT)
-                            + (node.keepAwake().holding() ? " (holding the display on now)" : ""));
+                            + (node.keepAwake().holding() ? " (holding the display on now via " + node.keepAwake().method() + ")" : ""));
                     return;
                 }
                 node.setKeepAwake(dev.activedesk.remote.KeepAwake.parse(a1), "local CLI");
@@ -147,6 +147,45 @@ public final class TextConsole {
                         + " | " + (Boolean.TRUE.equals(st.get("supported")) ? st.get("backend") : "unsupported here")
                         + (((Number) st.get("percent")).intValue() >= 0 ? " | now " + st.get("percent") + "%" : "")
                         + " | " + st.get("message"));
+            }
+            case "/power" -> {
+                if (!privileged(c)) return;
+                var ps = node.power();
+                try {
+                    switch (a1) {
+                        case "" -> { }
+                        case "mode" -> node.setPowerProfile(a2.trim(), "local CLI");
+                        case "brightness" -> node.setBrightness(Integer.parseInt(a2.trim()), "local CLI");
+                        case "saver" -> {
+                            String[] p = a2.trim().split("\\s+");
+                            if (p[0].equals("off")) node.setPowerSaver(false, ps.saverBelow(), ps.saverProfileSetting(), ps.saverDim(), "local CLI");
+                            else if (p[0].matches("[0-9]{1,2}")) node.setPowerSaver(true, Integer.parseInt(p[0]), ps.saverProfileSetting(),
+                                    p.length > 1 ? Integer.parseInt(p[1]) : ps.saverDim(), "local CLI");
+                            else throw new NumberFormatException();
+                        }
+                        default -> throw new NumberFormatException();
+                    }
+                } catch (NumberFormatException e) {
+                    say(c, "ERR usage: /power [mode <id> | brightness <1-100> | saver off | saver <below%> [dim%]]");
+                    return;
+                } catch (IllegalArgumentException | java.io.IOException e) {
+                    say(c, "ERR " + e.getMessage());
+                    return;
+                }
+                var st = ps.state();
+                StringBuilder sb = new StringBuilder("OK power");
+                sb.append(ps.hasBattery() ? " | battery " + ps.percent() + "%" + (ps.onBattery() ? " on battery" : " plugged in") : " | no battery");
+                sb.append(" | mode ").append(st.get("profile").toString().isEmpty() ? "n/a" : st.get("profile"));
+                List<?> profiles = (List<?>) st.get("profiles");
+                if (!profiles.isEmpty()) {
+                    sb.append(" (choices:");
+                    for (Object o : profiles) sb.append(' ').append(((java.util.Map<?, ?>) o).get("id"));
+                    sb.append(')');
+                }
+                sb.append(" | brightness ").append(((Number) st.get("brightness")).intValue() >= 0 ? st.get("brightness") + "%" : "n/a");
+                sb.append(" | auto saver ").append(Boolean.TRUE.equals(st.get("saverEnabled")) ? "below " + st.get("saverBelow") + "%" : "off");
+                if (Boolean.TRUE.equals(st.get("needsSetup"))) sb.append(" | run 'activedesk power install' once for full control");
+                say(c, sb.toString());
             }
             case "/quit", "/exit" -> {
                 say(c, "bye");

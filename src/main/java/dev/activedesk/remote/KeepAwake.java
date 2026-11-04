@@ -26,14 +26,16 @@ import java.util.function.Consumer;
  *            (the Pi desktop's screen blanking is the X server's, which logind does not control).
  * Every helper reads our stdin pipe or watches our pid, so it exits by itself if the JVM is killed:
  * a crash can never leave a machine stuck awake.
- * If no helper can start, it falls back to a 1-pixel mouse nudge via Robot.
+ * On top of that, while holding, every 30 s it nudges input like a person would: the pointer moves 1 px and back and
+ * Shift is tapped (no character, no click on whatever is under the cursor). That resets the idle timer even where the
+ * OS request is ignored (group policy, some Linux desktops, "away" status in chat apps).
  */
 public final class KeepAwake {
     public enum Mode { OFF, SESSION, ALWAYS }
 
     /** How long after the last remote screen/input request the session mode keeps the display on. */
     static final long SESSION_GRACE_MS = 3 * 60_000;
-    private static final long NUDGE_EVERY_MS = 50_000;
+    private static final long NUDGE_EVERY_MS = 30_000;
 
     private final ScreenService screen;
     private final String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
@@ -41,7 +43,7 @@ public final class KeepAwake {
     private volatile long lastActivity;
     private Process helper;
     private boolean helperFailed;
-    private long lastNudge;
+    private volatile long lastNudge;
     private boolean xsetMissing;
     private String method = "";
 
@@ -76,7 +78,10 @@ public final class KeepAwake {
     /** Is the display currently being held on? */
     public synchronized boolean holding() { return (helper != null && helper.isAlive()) || (helperFailed && active()); }
 
-    public String method() { return method; }
+    public String method() { return method + (screen.available() ? " + input nudge every 30 s" : ""); }
+
+    /** Epoch ms of the last input nudge (0 = none yet). */
+    public long lastNudge() { return lastNudge; }
 
     private boolean active() {
         return switch (mode) {
@@ -86,7 +91,7 @@ public final class KeepAwake {
         };
     }
 
-    /** Called every ~20 s by the node and whenever the state may have changed. */
+    /** Called every ~10 s by the node and whenever the state may have changed. */
     public synchronized void tick() {
         boolean want = active();
         if (want && helper != null && !helper.isAlive()) {
@@ -100,7 +105,7 @@ public final class KeepAwake {
         if (want && !alive && !helperFailed) start();
         if (!want && helper != null) stop();
         if (want && isLinux() && hasX11()) xsetReset();
-        if (want && helperFailed) nudge();
+        if (want) nudge();
         if (!want) helperFailed = false; // try the real helper again next time
     }
 
@@ -195,7 +200,7 @@ public final class KeepAwake {
         if (now - lastNudge < NUDGE_EVERY_MS || !screen.available()) return;
         lastNudge = now;
         try {
-            screen.nudgePointer();
+            screen.nudgeInput();
         } catch (RuntimeException e) {
             Log.debug("keep-awake nudge failed: " + e.getMessage());
         }

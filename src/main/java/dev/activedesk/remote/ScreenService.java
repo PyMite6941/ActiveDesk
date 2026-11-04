@@ -68,7 +68,15 @@ public final class ScreenService {
         return all;
     }
 
-    /** Keep-awake fallback: move the pointer 1 px and back. Resets the OS idle timer without clicking or typing. */
+    /** Keep-awake "someone is here": pointer 1 px and back + a Shift tap. Never clicks, never types a character. */
+    public synchronized void nudgeInput() {
+        if (robot == null) return;
+        robot.keyPress(java.awt.event.KeyEvent.VK_SHIFT);
+        robot.keyRelease(java.awt.event.KeyEvent.VK_SHIFT);
+        nudgePointer();
+    }
+
+    /** Move the pointer 1 px and back. */
     public synchronized void nudgePointer() {
         if (robot == null) return;
         java.awt.PointerInfo pi = java.awt.MouseInfo.getPointerInfo();

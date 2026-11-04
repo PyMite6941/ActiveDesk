@@ -96,6 +96,7 @@ function switchTab(tab) {
   if (tab === 'files') loadFiles();
   if (tab === 'tasks') loadTasks();
   if (tab === 'devices') renderDevices();
+  if (tab === 'power') renderPower();
   if (tab === 'chat') loadChat(true);
 }
 
@@ -108,6 +109,8 @@ async function refreshState() {
     if (document.activeElement !== $('awake') && state.keepAwake) $('awake').value = state.keepAwake;
     fillTargets();
     if (currentTab === 'devices') renderDevices();
+    if (currentTab === 'power') renderPower();
+    renderNoScreen();
   } catch (e) { /* handled in api() */ }
 }
 
@@ -152,8 +155,7 @@ async function screenLoop() {
   const msg = $('screenMsg');
   while (token && currentTab === 'screen' && !document.hidden) {
     if (state && !state.screen) {
-      msg.textContent = 'Screen sharing is not available on this device: ' + (state.screenReason || 'unknown');
-      msg.classList.remove('hidden');
+      renderNoScreen();
       await sleep(3000);
       continue;
     }
@@ -174,6 +176,26 @@ async function screenLoop() {
   screenBusy = false;
   holdLocalAwake(false);
 }
+// No screen (headless Pi, server, locked-down session): offer a Tailscale SSH terminal instead.
+function renderNoScreen() {
+  const none = !!state && !state.screen;
+  $('noScreen').classList.toggle('hidden', !none);
+  $('screenArea').classList.toggle('hidden', none);
+  if (!none) return;
+  const host = state.selfName || state.selfIp || state.device;
+  const user = state.user || 'you';
+  const win = /win/i.test(state.os || '');
+  $('noScreenWhy').textContent = 'Reason: ' + (state.screenReason || 'no display');
+  $('sshCmd').textContent = (win ? 'ssh ' : 'tailscale ssh ') + user + '@' + host;
+  $('sshHost').textContent = state.selfIp || host;
+  $('sshUser').textContent = user;
+  $('sshWinNote').classList.toggle('hidden', !win);
+}
+$('sshCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('sshCmd').textContent); toast('Copied'); }
+  catch (e) { toast('Select the command and copy it'); }
+});
+
 document.addEventListener('visibilitychange', () => { if (!document.hidden && currentTab === 'screen') screenLoop(); });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -521,32 +543,120 @@ async function loadFiles() {
 
 // ------------------------------------------------------------------ devices
 
-function renderBattery() {
-  const b = state && state.battery;
-  if (!b) return;
-  const pct = b.percent >= 0 ? 'Now ' + b.percent + '%. ' : '';
-  $('batteryMsg').textContent = !b.hasBattery ? 'This device has no laptop battery.'
-    : (b.supported ? pct + (b.backend ? '[' + b.backend + '] ' : '') : 'Not supported here: ') + (b.message || '');
+// ------------------------------------------------------------------ power + battery
+
+function renderPower() {
+  if (!state || !state.power) return;
+  const p = state.power, b = state.battery || {};
+  $('powerDevice').textContent = state.device;
+
+  // one-time setup prompt (only when something here actually needs it)
+  const setupRunning = (state.powerSetup || '').startsWith('running');
+  const needs = p.needsSetup || (p.hasBattery && b.needsSetup);
+  $('powerSetupCard').classList.toggle('hidden', !needs && !state.powerSetup);
+  $('powerSetupMsg').textContent = state.powerSetup ? 'Setup: ' + state.powerSetup
+    : 'Some settings below need a one-time permission on this device.';
+  $('powerSetupBtn').disabled = setupRunning || state.viewOnly;
+  $('powerSetupBtn').classList.toggle('hidden', !needs);
+
+  // status line
+  const bits = [];
+  if (p.hasBattery && p.percent >= 0) bits.push('Battery ' + p.percent + '% - ' + (p.onBattery ? 'on battery' : p.charging ? 'charging' : 'plugged in'));
+  else if (p.ready) bits.push('Plugged in (no battery)');
+  if (p.saverActive) bits.push('auto power saver is ON');
+  if (p.message) bits.push(p.message);
+  $('powerStatus').textContent = p.ready ? bits.join('. ') : 'Checking this device...';
+
+  // power mode
+  const hasModes = p.profiles && p.profiles.length > 0;
+  $('modeField').classList.toggle('hidden', !hasModes);
+  fillModes($('powerMode'), p.profiles || [], null);
+  if (document.activeElement !== $('powerMode')) $('powerMode').value = p.profile;
+  $('powerMode').disabled = state.viewOnly;
+
+  // brightness
+  const hasBright = p.brightness >= 0;
+  $('brightField').classList.toggle('hidden', !hasBright);
+  if (hasBright && document.activeElement !== $('brightness')) {
+    $('brightness').value = p.brightness;
+    $('brightVal').textContent = p.brightness + '%';
+  }
+  $('brightness').disabled = state.viewOnly;
+  $('powerNone').classList.toggle('hidden', !p.ready || hasModes || hasBright);
+
+  // battery: the whole section only exists on devices that have one
+  $('batterySection').classList.toggle('hidden', !p.hasBattery);
+  $('noBattery').classList.toggle('hidden', p.hasBattery || !p.ready);
+  if (!p.hasBattery) return;
+  $('batteryMsg').textContent = b.supported
+    ? (b.enabled ? (b.holding ? 'Holding charge (top of the range reached). ' : 'Limit is on. ') : '') + (b.message || '')
+    : 'Charge limit: ' + (b.message || 'not supported here');
   $('batteryControls').classList.toggle('hidden', !b.supported);
-  if (document.activeElement !== $('batteryMin') && document.activeElement !== $('batteryMax')) {
-    $('batteryOn').checked = b.enabled;
+  if (![$('batteryMin'), $('batteryMax')].includes(document.activeElement)) {
+    $('batteryOn').checked = !!b.enabled;
     $('batteryMin').value = b.min;
     $('batteryMax').value = b.max;
   }
+  fillModes($('saverProfile'), p.profiles || [], 'the most power-saving mode');
+  if (![$('saverBelow'), $('saverDim'), $('saverProfile')].includes(document.activeElement)) {
+    $('saverOn').checked = !!p.saverEnabled;
+    $('saverBelow').value = p.saverBelow;
+    $('saverDim').value = p.saverBrightness;
+    $('saverProfile').value = p.saverProfile || '';
+  }
+  $('saverMsg').textContent = p.saverActive ? 'Active now' : '';
 }
-$('batterySave').addEventListener('click', async () => {
-  const min = parseInt($('batteryMin').value, 10), max = parseInt($('batteryMax').value, 10);
+
+function fillModes(sel, profiles, firstLabel) {
+  const key = (firstLabel || '') + '|' + profiles.map((x) => x.id + '=' + x.name).join(',');
+  if (sel.dataset.key === key) return;
+  sel.dataset.key = key;
+  sel.textContent = '';
+  if (firstLabel) { const o = el('option', '', firstLabel); o.value = ''; sel.appendChild(o); }
+  profiles.forEach((x) => { const o = el('option', '', x.name); o.value = x.id; sel.appendChild(o); });
+}
+
+async function powerPost(path, data, ok) {
   try {
-    const r = await postJson('/api/battery', { enabled: $('batteryOn').checked, min, max });
-    state.battery = r.battery;
-    renderBattery();
-    toast($('batteryOn').checked ? 'Charging limited to ' + min + '-' + max + '%' : 'Normal charging');
-  } catch (e) { toast('Battery: ' + e.message); }
+    const r = await postJson(path, data);
+    if (r.power) state.power = r.power;
+    if (r.battery) state.battery = r.battery;
+    renderPower();
+    if (ok) toast(ok);
+  } catch (e) { toast(e.message); refreshState(); }
+}
+
+$('powerMode').addEventListener('change', () => {
+  const o = $('powerMode').selectedOptions[0];
+  powerPost('/api/power/profile', { id: $('powerMode').value }, 'Power mode: ' + (o ? o.textContent : ''));
+});
+$('brightness').addEventListener('input', () => { $('brightVal').textContent = $('brightness').value + '%'; });
+$('brightness').addEventListener('change', () => {
+  powerPost('/api/power/brightness', { value: parseInt($('brightness').value, 10) }, 'Brightness ' + $('brightness').value + '%');
+});
+$('batterySave').addEventListener('click', () => {
+  const min = parseInt($('batteryMin').value, 10), max = parseInt($('batteryMax').value, 10);
+  powerPost('/api/battery', { enabled: $('batteryOn').checked, min, max },
+    $('batteryOn').checked ? 'Charging limited to ' + min + '-' + max + '%' : 'Normal charging');
+});
+$('saverSave').addEventListener('click', () => {
+  powerPost('/api/power/saver', {
+    enabled: $('saverOn').checked,
+    below: parseInt($('saverBelow').value, 10),
+    profile: $('saverProfile').value,
+    brightness: parseInt($('saverDim').value, 10) || 0,
+  }, $('saverOn').checked ? 'Auto power saver on' : 'Auto power saver off');
+});
+$('powerSetupBtn').addEventListener('click', async () => {
+  try {
+    await api('/api/power/setup', { method: 'POST' });
+    toast('Approve the admin prompt on ' + state.device + ' itself');
+    refreshState();
+  } catch (e) { toast(e.message); }
 });
 
 function renderDevices() {
   if (!state) return;
-  renderBattery();
   const list = $('deviceList');
   list.textContent = '';
   const me = el('div', 'item');

@@ -8,6 +8,8 @@ import dev.activedesk.net.TextConsole;
 import dev.activedesk.remote.ControlIndicator;
 import dev.activedesk.remote.KeepAwake;
 import dev.activedesk.power.BatteryService;
+import dev.activedesk.power.PowerService;
+import dev.activedesk.power.PowerSetup;
 import dev.activedesk.remote.ScreenService;
 import dev.activedesk.sched.RunLog;
 import dev.activedesk.sched.Scheduler;
@@ -47,6 +49,9 @@ public final class Node implements Hub.Listener, AutoCloseable {
     private final ControlIndicator indicator;
     private final KeepAwake keepAwake;
     private final BatteryService battery;
+    private final PowerService power;
+    private volatile String setupStatus = "";
+    private volatile long setupStarted;
     private final Scheduler scheduler;
     private final WebServer web;
     private final TextConsole console;
@@ -67,7 +72,8 @@ public final class Node implements Hub.Listener, AutoCloseable {
         this.screen.setTypeMode(config.get("control.typeMode"));
         this.indicator = new ControlIndicator(config.getBool("control.indicator") && screen.available());
         this.keepAwake = new KeepAwake(screen, KeepAwake.parse(config.get("power.keepAwake")));
-        this.battery = new BatteryService(config);
+        this.power = new PowerService(config);
+        this.battery = new BatteryService(config, power);
         this.hub = new Hub(config.nodeId(), policy, this::helloInfo);
         this.chat = new ChatService(hub, config.nodeId(), config.deviceName(), config.home().resolve("chat.jsonl"));
         long maxBytes;
@@ -99,10 +105,10 @@ public final class Node implements Hub.Listener, AutoCloseable {
         chat.addListener(console::onChat);
         scheduler.start();
         ThreadPools.get().ticker().scheduleWithFixedDelay(this::maintain, 3, 20, TimeUnit.SECONDS);
-        ThreadPools.get().ticker().scheduleWithFixedDelay(this::keepAwakeTick, 1, 20, TimeUnit.SECONDS);
+        ThreadPools.get().ticker().scheduleWithFixedDelay(this::keepAwakeTick, 1, 10, TimeUnit.SECONDS);
         battery.start();
-        ThreadPools.get().io().submit(battery::tick); // detection can take a couple of seconds on Windows
-        ThreadPools.get().ticker().scheduleWithFixedDelay(() -> ThreadPools.get().io().submit(battery::tick), 30, 30, TimeUnit.SECONDS);
+        ThreadPools.get().io().submit(this::powerTick); // detection can take a couple of seconds on Windows
+        ThreadPools.get().ticker().scheduleWithFixedDelay(() -> ThreadPools.get().io().submit(this::powerTick), 30, 30, TimeUnit.SECONDS);
         audit("node started (" + config.deviceName() + ")");
     }
 
@@ -127,6 +133,60 @@ public final class Node implements Hub.Listener, AutoCloseable {
             Log.error("keep-awake tick failed", e);
         }
     }
+
+    private void powerTick() {
+        try {
+            power.tick();     // battery level, mode, brightness, auto saver
+            battery.tick();   // charge range (uses the level power just read)
+        } catch (RuntimeException e) {
+            Log.error("power tick failed", e);
+        }
+    }
+
+    public void setPowerProfile(String id, String who) throws IOException {
+        power.setProfile(id);
+        audit("power mode set to " + id + " by " + who);
+    }
+
+    public void setBrightness(int pct, String who) throws IOException {
+        power.setBrightness(pct);
+        audit("brightness set to " + pct + "% by " + who);
+    }
+
+    public void setPowerSaver(boolean enabled, int below, String profile, int dim, String who) throws IOException {
+        power.setSaver(enabled, below, profile, dim);
+        audit("auto power saver " + (enabled ? "on below " + below + "%" : "off") + " set by " + who);
+    }
+
+    /**
+     * Start the one-time privileged setup in the background. The OS shows its admin prompt on THIS device,
+     * so whoever triggers it remotely still needs someone (or their own remote view) to approve it here.
+     */
+    public synchronized boolean startPowerSetup(String who) {
+        if (System.currentTimeMillis() - setupStarted < 120_000 && setupStatus.startsWith("running")) return false;
+        setupStarted = System.currentTimeMillis();
+        setupStatus = "running: approve the admin prompt on this device";
+        audit("power setup started by " + who);
+        Thread t = new Thread(() -> {
+            StringBuilder log = new StringBuilder();
+            int rc;
+            try {
+                rc = PowerSetup.install(config, false, line -> log.append(line).append(' '));
+            } catch (IOException | RuntimeException e) {
+                rc = -1;
+                log.append(e.getMessage());
+            }
+            setupStatus = (rc == 0 ? "done: " : "failed: ") + log.toString().trim();
+            audit("power setup " + (rc == 0 ? "completed" : "failed (" + rc + ")"));
+            battery.redetect();
+            power.tick();
+        }, "power-setup");
+        t.setDaemon(true);
+        t.start();
+        return true;
+    }
+
+    public String powerSetupStatus() { return setupStatus; }
 
     /** Change the battery charge range (persisted) and apply it now. */
     public void setBattery(boolean enabled, int min, int max, String who) throws IOException {
@@ -328,6 +388,7 @@ public final class Node implements Hub.Listener, AutoCloseable {
     public ControlIndicator indicator() { return indicator; }
     public KeepAwake keepAwake() { return keepAwake; }
     public BatteryService battery() { return battery; }
+    public PowerService power() { return power; }
     public Scheduler scheduler() { return scheduler; }
     public WebServer web() { return web; }
 
@@ -340,5 +401,6 @@ public final class Node implements Hub.Listener, AutoCloseable {
         transfers.close();
         keepAwake.close();
         battery.close();
+        power.close();
     }
 }
