@@ -22,99 +22,129 @@
 </header>
 <main class="wrap docs-main">
   <div class="page-crumb"><a href="index.html">ActiveDesk</a> &#8259; Setup</div>
-  <h1>Install on every device</h1>
-  <p class="section-lead">Install Tailscale and ActiveDesk on each device you want to reach, all signed into the same Tailscale account.</p>
+  <h1>Install, set up, run, and uninstall</h1>
+  <p class="section-lead">Install ActiveDesk on every device you want to reach, all signed into the same Tailscale account.</p>
 
   <section>
-    <h2>Step 1 &#8212; Tailscale</h2>
-    <p>Install Tailscale on every device and sign in to the same account:</p>
-    <ul>
-      <li><b>Windows / macOS:</b> download from <a href="https://tailscale.com/download">tailscale.com/download</a>, or <code>winget install Tailscale.Tailscale</code> on Windows and <code>brew install --cask tailscale</code> on macOS.</li>
-      <li><b>Raspberry Pi / Debian / Ubuntu:</b> <code>curl -fsSL https://tailscale.com/install.sh | sh</code>, then <code>sudo tailscale up</code>.</li>
-      <li><b>iPhone:</b> install the Tailscale app from the App Store and sign in.</li>
-    </ul>
-    <p>Once signed in, each device gets a <code>100.x.y.z</code> tailnet address. That&#8217;s what ActiveDesk uses to reach it&#8237;—&#8237;nothing is exposed to your LAN or the internet.</p>
-  </section>
+    <h2>1. Install</h2>
+    <p>Choose one way to install. Each installs the <code>activedesk</code> command and starts the setup wizard.</p>
 
-  <section>
-    <h2>Step 2 &#8212; Java 17+</h2>
-    <p>ActiveDesk needs Java 17 or newer.</p>
-    <ul>
-      <li><b>Windows:</b> <code>winget install EclipseAdoptium.Temurin.21.JRE</code></li>
-      <li><b>macOS:</b> <code>brew install --cask temurin</code></li>
-      <li><b>Raspberry Pi / Debian / Ubuntu:</b> <code>sudo apt install openjdk-17-jre</code></li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>Step 3 &#8212; ActiveDesk</h2>
-    <div class="actions">
-      <a class="button button-primary" href="https://github.com/PyMite6941/ActiveDesk/releases/tag/v1.0.0">Download v1.0.0</a>
+    <div class="code-card">
+      <div class="code-top">One-line install (Linux / Raspberry Pi / macOS)</div>
+      <pre><span class="prompt">$</span> curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh</pre>
     </div>
-    <p>Each release has a bundle per operating system (Windows, macOS, Linux, Raspberry Pi 64-bit) that includes its own Java runtime&#8212;nothing else to install except Tailscale. Bundles are in <code>bin/</code> on GitHub or as release assets:</p>
+    <div class="code-card" style="margin-top: 14px;">
+      <div class="code-top">One-line install (Windows PowerShell)</div>
+      <pre><span class="prompt">&gt;</span> irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex</pre>
+    </div>
+
+    <p>Or install manually — the release bundles already include Java, so nothing else is needed except Tailscale:</p>
     <ul>
-      <li><b>Windows:</b> <code>ActiveDesk-windows-x64.zip</code> (extract, run <code>activedesk.exe</code>)</li>
-      <li><b>macOS:</b> <code>ActiveDesk-macos-arm64.tar.gz</code> (extract, run <code>./activedesk</code>)</li>
-      <li><b>Linux:</b> <code>ActiveDesk-linux-x64.tar.gz</code> (extract, run <code>./activedesk</code>)</li>
-      <li><b>Raspberry Pi:</b> <code>ActiveDesk-linux-arm64.tar.gz</code> (extract, run <code>./activedesk</code>, use X11 not Wayland)</li>
-      <li><b>Any OS:</b> portable <code>activedesk.jar</code> (run <code>java -jar activedesk.jar</code>)</li>
+      <li><b>Windows:</b> download <code>ActiveDesk-windows-x64.zip</code> from <a href="https://github.com/PyMite6941/ActiveDesk/releases/tag/v1.0.0">Releases v1.0.0</a>, extract it, run <code>activedesk.exe</code>.</li>
+      <li><b>macOS:</b> download <code>ActiveDesk-macos-arm64.tar.gz</code>, extract it, run <code>./activedesk</code>.</li>
+      <li><b>Linux:</b> download <code>ActiveDesk-linux-x64.tar.gz</code>, extract it, run <code>./activedesk</code>.</li>
+      <li><b>Raspberry Pi (64-bit Pi OS):</b> download <code>ActiveDesk-linux-arm64.tar.gz</code>, extract it, run <code>./activedesk</code> (use X11, not Wayland).</li>
+      <li><b>Any OS with Java 17+:</b> download the portable <code>activedesk.jar</code> and run <code>java -jar activedesk.jar</code>.</li>
     </ul>
-    <p>Or build it yourself: <code>./build.sh</code> (Linux/macOS/Git Bash) or <code>build.cmd</code> (Windows), which produces <code>dist/activedesk.jar</code>.</p>
-    <p>Run it: <code>java -jar activedesk.jar</code>. The first start prints an <b>8-digit web PIN</b>. Write it down&#8237;—&#8237;you&#8217;ll enter it on your phone.</p>
+
+    <div class="tip"><b>Tailscale is required first.</b> Install Tailscale on every device and sign in to the same account before installing ActiveDesk. Each device then gets a <code>100.x.y.z</code> address that ActiveDesk uses to reach it — nothing is exposed to your LAN or the internet.</div>
   </section>
 
   <section>
-    <h2>Step 4 &#8212; Open from your phone</h2>
-    <p>On your phone, install Tailscale and sign in to the same account you used on your computer:</p>
-    <ul>
-      <li><b>iPhone:</b> Tailscale app from the App Store.</li>
-      <li><b>iPad:</b> Tailscale app from the App Store.</li>
-      <li><b>Android:</b> Tailscale app from Google Play.</li>
-    </ul>
-    <p>Then open the browser and go to <code>http://&lt;device-name&gt;:47801</code> or <code>http://100.x.y.z:47801</code>&#8237;—&#8237;for example <code>http://100.65.117.75:47801</code>.</p>
-    <div class="grid" style="margin-top: 10px;">
-      <div class="feature" style="padding: 16px;">
-        <h3>iPhone</h3>
-        <ol>
-          <li>Open Safari, go to the address above.</li>
-          <li>Enter the 8-digit PIN shown when ActiveDesk started.</li>
-          <li>Tap the share button &#8599; then &#8220;Add to Home Screen.&#8221;</li>
-        </ol>
-      </div>
-      <div class="feature" style="padding: 16px;">
-        <h3>iPad</h3>
-        <ol>
-          <li>Open Safari, go to the address above.</li>
-          <li>Enter the 8-digit PIN shown when ActiveDesk started.</li>
-          <li>Tap the share button &#8599; then &#8220;Add to Home Screen.&#8221;</li>
-        </ol>
-        <p class="fine" style="margin-top:8px;">iPad shows a wider layout with more on-screen controls. Works in Split View and Slide Over too.</p>
-      </div>
-      <div class="feature" style="padding: 16px;">
-        <h3>Android</h3>
-        <ol>
-          <li>Open Chrome, go to the address above.</li>
-          <li>Enter the 8-digit PIN shown when ActiveDesk started.</li>
-          <li>Tap the &#x2139; menu &#8594; &#8220;Add to Home screen.&#8221;</li>
-        </ol>
-      </div>
-    </div>
-    <p>For HTTPS (needed if you want the phone to keep its own screen on while viewing), run <code>tailscale serve --bg 47801</code> on the device and open <code>https://&lt;device&gt;.&lt;tailnet&gt;.ts.net</code>.</p>
-    <div class="tip"><b>Tip:</b> keep Tailscale running in the background on your phone so you can reach your computers from anywhere&#8237;—&#8237;mobile data or Wi-Fi.</div>
+    <h2>2. Set up (first run)</h2>
+    <p>The first time you run ActiveDesk it prints an <b>8-digit web PIN</b>. You enter this PIN on your phone or another computer to unlock the web app.</p>
+    <pre><span class="prompt">$</span> activedesk</pre>
+    <p>Then run the guided setup wizard (takes about a minute, press Enter to accept defaults):</p>
+    <pre><span class="prompt">$</span> activedesk setup</pre>
+    <p>The wizard walks you through:</p>
+    <ol>
+      <li><b>Tailscale</b> — confirms it is running and signed into the same account as your other devices.</li>
+      <li><b>Screen</b> — detects whether this device has a screen; on headless devices it offers to enable Tailscale SSH.</li>
+      <li><b>Device name</b> — the name shown on your other devices.</li>
+      <li><b>Web PIN</b> — write it down; you enter it on your phone to unlock the app.</li>
+      <li><b>Keep screen on</b> — <i>session</i> (while controlled), <i>always</i> (kiosk), or <i>off</i>.</li>
+      <li><b>Power + battery</b> — optional one-time admin setup for battery charge limits and power modes.</li>
+      <li><b>Start automatically</b> — sets up autostart so ActiveDesk runs when the device starts.</li>
+    </ol>
+    <p>Run <code>activedesk setup --yes</code> to accept every default without asking (useful for scripting).</p>
+    <p>After setup, the wizard tells you the address to open on your phone, e.g. <code>http://100.x.y.z:47801/</code>.</p>
   </section>
 
-  <div class="code-card">
-    <div class="code-top">One-line install (Linux / Pi / macOS)</div>
-    <pre><span class="prompt">$</span> curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh</pre>
-  </div>
-  <div class="code-card" style="margin-top: 14px;">
-    <div class="code-top">One-line install (Windows PowerShell)</div>
-    <pre><span class="prompt">&gt;</span> irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex</pre>
-  </div>
+  <section>
+    <h2>3. Run</h2>
+    <p>Start the node (default command — no arguments needed):</p>
+    <pre><span class="prompt">$</span> activedesk</pre>
+    <p>Or explicitly:</p>
+    <pre><span class="prompt">$</span> activedesk run</pre>
+    <p>This starts the peer-to-peer network and the web UI at <code>http://127.0.0.1:47801/</code> (and your Tailscale address). Open that URL from your phone or another computer over Tailscale, enter the PIN, and you are connected.</p>
+    <p>To start automatically at login, run <code>activedesk install-service</code> (Startup entry on Windows, LaunchAgent on macOS, XDG autostart on Linux).</p>
+  </section>
 
-  <div class="tip"><b>One-time setup:</b> battery charge limits and Windows power modes need admin once. The installer offers to run <code>activedesk setup</code>, which walks you through Tailscale, the screen check, device name, PIN and autostart.</div>
+  <section>
+    <h2>4. Uninstall</h2>
+    <p>ActiveDesk does not scatter files across your system. To remove it completely:</p>
+    <ol>
+      <li><b>Stop the node:</b> close the terminal, or <code>taskkill /F /IM java.exe</code> (Windows) / <code>pkill -f activedesk.jar</code> (Linux/macOS).</li>
+      <li><b>Remove autostart (if you set it up):</b> disable the Startup entry / LaunchAgent / XDG autostart that <code>activedesk install-service</code> created.</li>
+      <li><b>Delete the app folder:</b>
+        <ul>
+          <li>Windows: delete <code>%LOCALAPPDATA%\\ActiveDesk</code></li>
+          <li>macOS/Linux: delete <code>~/.local/share/activedesk</code> and <code>~/.local/bin/activedesk</code></li>
+        </ul>
+      </li>
+      <li><b>Delete the data folder (optional):</b> removes your config, PIN, audit log, and chat history.
+        <ul>
+          <li>Windows: <code>%APPDATA%\\ActiveDesk</code></li>
+          <li>macOS/Linux: <code>~/.activedesk</code></li>
+        </ul>
+      </li>
+      <li><b>Uninstall Tailscale (optional):</b> remove the Tailscale app if you no longer need it.</li>
+    </ol>
+    <div class="warning">Uninstalling ActiveDesk does not remove Tailscale or Java — those are separate installations.</div>
+  </section>
 
-  <div class="warning"><b>Raspberry Pi:</b> use the X11 desktop session, not Wayland&#8237;—&#8237;<code>sudo raspi-config</code> &#8594; Advanced &#8594; Wayland &#8594; X11. Screen capture does not work under Wayland.</div>
+  <section>
+    <h2>CLI commands</h2>
+    <table>
+      <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>activedesk</code> / <code>activedesk run</code></td><td>Start this device's node (default).</td></tr>
+        <tr><td><code>activedesk setup</code></td><td>Guided first-time setup wizard (PIN, Tailscale check, autostart, power).</td></tr>
+        <tr><td><code>activedesk setup --yes</code></td><td>Accept all setup defaults without asking.</td></tr>
+        <tr><td><code>activedesk install-service</code></td><td>Start ActiveDesk automatically at login/boot.</td></tr>
+        <tr><td><code>activedesk chat [room]</code></td><td>Terminal chat (or <code>nc &lt;device&gt; 47800</code>).</td></tr>
+        <tr><td><code>activedesk send &lt;device&gt; &lt;file&gt;</code></td><td>Send a file to another device.</td></tr>
+        <tr><td><code>activedesk who</code> / <code>activedesk tasks</code></td><td>Connected devices / scheduled tasks.</td></tr>
+        <tr><td><code>activedesk run-task &lt;id&gt;</code></td><td>Run a scheduled task (and its dependencies) now.</td></tr>
+        <tr><td><code>activedesk lock</code></td><td>End every web / remote-control session immediately.</td></tr>
+        <tr><td><code>activedesk awake [off|session|always]</code></td><td>Keep the screen on (session = while controlled, always = kiosk).</td></tr>
+        <tr><td><code>activedesk pin</code></td><td>Set a new web PIN.</td></tr>
+        <tr><td><code>activedesk status</code></td><td>Tailscale + config summary.</td></tr>
+        <tr><td><code>activedesk selftest</code></td><td>Run the built-in end-to-end test (what CI runs).</td></tr>
+        <tr><td><code>activedesk power install</code></td><td>One-time admin/root setup for power mode, brightness, charge limits.</td></tr>
+        <tr><td><code>activedesk power uninstall</code></td><td>Remove the power/battery privileged setup.</td></tr>
+        <tr><td><code>activedesk power status</code></td><td>Show current power mode, brightness, battery state.</td></tr>
+        <tr><td><code>activedesk power mode &lt;id&gt;</code></td><td>Set power mode (e.g. Balanced, Powersave).</td></tr>
+        <tr><td><code>activedesk power brightness &lt;1-100&gt;</code></td><td>Set screen brightness.</td></tr>
+        <tr><td><code>activedesk power saver off|&lt;below%&gt; [dim%]</code></td><td>Auto power saver when on battery below a percent.</td></tr>
+        <tr><td><code>activedesk battery &lt;min&gt; &lt;max&gt;</code></td><td>Only charge between min% and max% (e.g. 40 80).</td></tr>
+        <tr><td><code>activedesk battery on|off|status|uninstall</code></td><td>Turn charge limiting on/off, show status, or uninstall.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Phone setup (iPhone, iPad, Android)</h2>
+    <ol>
+      <li>Install Tailscale on the phone and sign in to the same account as your computers.</li>
+      <li>Open Safari (iPhone/iPad) or Chrome (Android) and go to <code>http://&lt;device&gt;:47801</code> over Tailscale.</li>
+      <li>Enter the 8-digit PIN shown when ActiveDesk started on the computer.</li>
+      <li>Tap the share/menu button &#8599; then &#8220;Add to Home Screen.&#8221; It now appears as a real app icon.</li>
+    </ol>
+    <div class="tip">Keep Tailscale running in the background on your phone so you can reach your computers from anywhere — mobile data or Wi-Fi.</div>
+  </section>
+
+  <div class="warning"><b>Raspberry Pi:</b> use the X11 desktop session, not Wayland (<code>sudo raspi-config</code> &#8594; Advanced &#8594; Wayland &#8594; X11). Screen capture does not work under Wayland.</div>
 </main>
 <footer>
   <div class="wrap">

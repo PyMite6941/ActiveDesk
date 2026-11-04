@@ -46,6 +46,22 @@ find each other over your **Tailscale** tailnet.
    - macOS: a LaunchAgent.
    - Linux: XDG autostart, plus a systemd user unit.
 
+### One-line installers
+
+- Linux / Pi / macOS: `curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh`
+- Windows PowerShell: `irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex`
+
+### Uninstall
+
+ActiveDesk does not scatter files across your system. To remove it completely:
+
+1. Stop the node: close the terminal, or `taskkill /F /IM java.exe` (Windows) / `pkill -f activedesk.jar` (Linux/macOS).
+2. Remove autostart (if you ran `activedesk install-service`).
+3. Delete the app folder: `%LOCALAPPDATA%\ActiveDesk` (Windows) or `~/.local/share/activedesk` + `~/.local/bin/activedesk` (Linux/macOS).
+4. Delete the data folder (optional — removes config, PIN, audit log, chat history): `%APPDATA%\ActiveDesk` (Windows) or `~/.activedesk` (Linux/macOS).
+
+Uninstalling ActiveDesk does not remove Tailscale or Java — those are separate installations.
+
 ### Phone
 
 1. Install the Tailscale app on the phone.
