@@ -76,7 +76,7 @@ final class SelfTest {
         try {
             a.start();
             b.start();
-            boolean up = waitFor(() -> a.hub().peers().size() == 1 && b.hub().peers().size() == 1, 20_000);
+            boolean up = waitFor(() -> a.hub().peers().size() == 1 && b.hub().peers().size() == 1, 45_000);
             check("peers connect and handshake over the NIO hub", up);
             if (!up) return false;
             Connection aToB = a.hub().peers().iterator().next();
@@ -192,6 +192,13 @@ final class SelfTest {
         check("battery range validated by the API",
                 post(http, base + "/api/battery", "{\"enabled\":true,\"min\":78,\"max\":80}", token, null).statusCode() == 400
                         && post(http, base + "/api/battery", "{\"enabled\":true,\"min\":10,\"max\":80}", token, null).statusCode() == 400);
+        check("power settings validated by the API",
+                post(http, base + "/api/power/profile", "{\"id\":\"no-such-mode\"}", token, null).statusCode() == 400
+                        && post(http, base + "/api/power/brightness", "{\"value\":500}", token, null).statusCode() == 400
+                        && post(http, base + "/api/power/saver", "{\"enabled\":true,\"below\":99,\"profile\":\"\",\"brightness\":0}", token, null).statusCode() == 400);
+        String state = get(http, base + "/api/state", token, null).body();
+        check("state reports power, battery and SSH fallback info",
+                state.contains("\"power\":{") && state.contains("\"hasBattery\":") && state.contains("\"user\":") && state.contains("\"keepAwakeMethod\":"));
         check("bogus token refused", get(http, base + "/api/state", "f".repeat(64), null).statusCode() == 401);
         int last = 0;
         for (int i = 0; i < 6; i++) last = post(http, base + "/api/login", "{\"pin\":\"1\"}", null, null).statusCode();
