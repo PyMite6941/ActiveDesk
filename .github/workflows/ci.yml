@@ -94,3 +94,36 @@ jobs:
           Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
           & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" version
           if (-not (Select-String -Quiet 'web.pinHash=' "$env:ACTIVEDESK_HOME\config.properties")) { exit 1 }
+
+  # install.sh on other Linux distros, each starting WITHOUT Java: the installer must get Java
+  # from that distro's package manager, set up ActiveDesk, and the installed command must pass
+  # the full self-test. Plain `docker run` (not container jobs) so Alpine/musl works too.
+  distros:
+    name: distro ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:13
+          - ubuntu:24.04
+          - fedora:latest
+          - rockylinux:9
+          - amazonlinux:2023
+          - archlinux:latest
+          - opensuse/tumbleweed:latest
+          - alpine:latest
+          - ghcr.io/void-linux/void-glibc-full:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build
+        run: sh build.sh
+      - name: install.sh + self-test in ${{ matrix.image }}
+        run: docker run --rm -v "$PWD:/w" "${{ matrix.image }}" sh /w/.github/ci/distro-test.sh

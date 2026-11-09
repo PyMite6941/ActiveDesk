@@ -43,6 +43,12 @@ say "Installs into $APP_DIR (no admin rights needed for ActiveDesk itself)."
 # 1. Java ------------------------------------------------------------------------------------------
 step 1/5 "Java 17 or newer"
 java_ok() {
+  # Some distros (e.g. Alpine) install Java under /usr/lib/jvm without putting it on PATH.
+  if ! have java; then
+    for j in /usr/lib/jvm/*/bin/java; do
+      if [ -x "$j" ]; then PATH="$(dirname "$j"):$PATH"; export PATH; break; fi
+    done
+  fi
   have java || return 1
   v="$(java -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -n1)"
   [ -n "$v" ] && [ "$v" -ge 17 ]
@@ -55,13 +61,22 @@ else
     if [ "$OS" = Darwin ]; then
       have brew || die "Install Homebrew (https://brew.sh) or Java from https://adoptium.net, then run this again."
       brew install --cask temurin
-    elif have apt-get; then
+    elif have apt-get; then   # Debian, Ubuntu, Raspberry Pi OS, Mint, Pop!_OS
       sudo_ apt-get update -qq
-      # full JRE (not -headless) so the remote screen works on desktops; fall back to 21 on newer releases
       sudo_ apt-get install -y openjdk-17-jre || sudo_ apt-get install -y openjdk-21-jre || sudo_ apt-get install -y default-jre
-    elif have dnf; then sudo_ dnf install -y java-17-openjdk || sudo_ dnf install -y java-21-openjdk
-    elif have pacman; then sudo_ pacman -S --noconfirm jre17-openjdk
-    elif have zypper; then sudo_ zypper install -y java-17-openjdk
+    elif have dnf; then       # Fedora, RHEL 8+, Rocky, Alma, CentOS Stream
+      sudo_ dnf install -y java-21-openjdk || sudo_ dnf install -y java-17-openjdk || sudo_ dnf install -y java-latest-openjdk
+    elif have yum; then       # older RHEL / CentOS / Amazon Linux 2
+      sudo_ yum install -y java-17-openjdk || sudo_ yum install -y java-17-amazon-corretto
+    elif have pacman; then    # Arch, Manjaro, EndeavourOS
+      sudo_ pacman -Sy --noconfirm jre-openjdk || sudo_ pacman -Sy --noconfirm jre21-openjdk
+    elif have zypper; then    # openSUSE Leap / Tumbleweed
+      sudo_ zypper --non-interactive install java-21-openjdk || sudo_ zypper --non-interactive install java-17-openjdk
+    elif have apk; then       # Alpine
+      sudo_ apk add --no-cache openjdk21-jre || sudo_ apk add --no-cache openjdk17-jre
+    elif have xbps-install; then  # Void
+      sudo_ xbps-install -Syu xbps || true   # xbps refuses installs while it is itself outdated
+      sudo_ xbps-install -Sy openjdk21-jre || sudo_ xbps-install -Sy openjdk17-jre
     else die "Install Java 17+ with your package manager (or from https://adoptium.net), then run this again."
     fi
   fi
@@ -110,7 +125,7 @@ step 4/5 "The 'activedesk' command"
 cat > "$BIN_DIR/activedesk" <<EOF
 #!/usr/bin/env sh
 # created by the ActiveDesk installer
-exec java -cp "$APP_DIR/activedesk.jar:$APP_DIR/lib/*" dev.activedesk.ActiveDesk "\$@"
+exec "$(command -v java)" -cp "$APP_DIR/activedesk.jar:$APP_DIR/lib/*" dev.activedesk.ActiveDesk "\$@"
 EOF
 chmod 755 "$BIN_DIR/activedesk"
 say "Installed $BIN_DIR/activedesk"
