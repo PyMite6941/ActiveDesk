@@ -65,7 +65,8 @@ else
       sudo_ apt-get update -qq
       sudo_ apt-get install -y openjdk-17-jre || sudo_ apt-get install -y openjdk-21-jre || sudo_ apt-get install -y default-jre
     elif have dnf; then       # Fedora, RHEL 8+, Rocky, Alma, CentOS Stream, Amazon Linux 2023
-      sudo_ dnf install -y java-21-openjdk || sudo_ dnf install -y java-17-openjdk || sudo_ dnf install -y java-latest-openjdk \n        || sudo_ dnf install -y java-21-amazon-corretto-headless || sudo_ dnf install -y java-17-amazon-corretto-headless
+      sudo_ dnf install -y java-21-openjdk || sudo_ dnf install -y java-17-openjdk || sudo_ dnf install -y java-latest-openjdk \
+        || sudo_ dnf install -y java-21-amazon-corretto-headless || sudo_ dnf install -y java-17-amazon-corretto-headless
     elif have yum; then       # older RHEL / CentOS / Amazon Linux 2
       sudo_ yum install -y java-17-openjdk || sudo_ yum install -y java-17-amazon-corretto
     elif have pacman; then    # Arch, Manjaro, EndeavourOS
