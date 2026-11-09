@@ -20,6 +20,9 @@ Please report vulnerabilities privately through GitHub's **"Report a vulnerabili
 | Wake-on-LAN abuse | Packets go only to private broadcast addresses and are rate limited per device. |
 | Elevated battery helper (Windows) | Installed into admin-only `Program Files`, so user-level code cannot swap the script. It only parses three integers from the config and never executes config content. It exits and restores normal charging when the node stops. |
 | Battery control (Linux) | A udev rule grants the user's group write access to the charge-threshold files only. ActiveDesk never runs as root. |
+| Tampered installer download | `install.sh` / `install.ps1` verify the jar's SHA-256 against the release's `SHA256SUMS.txt` and stop on a mismatch. |
+| Power settings (macOS) | `power install` adds a sudoers rule for `pmset` only, nothing else. |
+| Keep-awake input nudge | Sends only a Shift tap and a 1-pixel pointer move, never a click or a typed character. |
 | Unnoticed remote control | Red on-screen banner, chat notice and `audit.log` entry. |
 
 ## Known limits

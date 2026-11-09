@@ -45,6 +45,15 @@ jobs:
           path: dist/activedesk.jar
           retention-days: 14
 
+  # Pages serves docs/ straight from main, so docs/install.* must match the root installers.
+  installer-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: cmp install.sh docs/install.sh && cmp install.ps1 docs/install.ps1
+
   # The download installers + setup wizard, run the way a user would (minus the network download).
   installer:
     name: installer ${{ matrix.os }}

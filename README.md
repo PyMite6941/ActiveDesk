@@ -13,6 +13,8 @@ find each other over your **Tailscale** tailnet.
 - **Pure JDK 17+, zero dependencies.** It runs anywhere Java runs: Windows, macOS, Linux, Raspberry Pi (64-bit Pi OS).
 - **Phones** use the built-in web app. Open `http://<device>:47801` over Tailscale and "Add to Home Screen".
 - **`nc` works as a fallback client** for chat: `nc <device> 47800`.
+- **All free.** Tailscale Personal, GitHub and OpenJDK cost nothing, and so does ActiveDesk.
+- **Docs, with screenshots:** https://pymite6941.github.io/ActiveDesk/
 
 ## Features
 
@@ -50,6 +52,27 @@ find each other over your **Tailscale** tailnet.
 
 - Linux / Pi / macOS: `curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh`
 - Windows PowerShell: `irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex`
+
+The installer checks for Java and Tailscale, offers to install them, downloads `activedesk.jar` from the
+latest release, **verifies its SHA-256**, adds the `activedesk` command and then starts the setup wizard.
+Overrides: `ACTIVEDESK_JAR` (use a local jar), `ACTIVEDESK_VERSION` (pin a release), `ACTIVEDESK_YES=1` (no questions).
+
+### Setup wizard
+
+`activedesk setup` (add `--yes` to accept every default) walks through:
+
+1. Tailscale is installed and logged in.
+2. The device has a screen. If it is headless, it offers `tailscale set --ssh` (see below).
+3. Device name and web PIN.
+4. Keep-awake mode.
+5. Optional power and battery setup (`activedesk power install`).
+6. Start on login.
+
+### Devices without a screen
+
+A Raspberry Pi or server with no display has nothing to remote-control. The **Screen** tab then shows a
+**Tailscale SSH** panel instead: a copyable `tailscale ssh user@host` command and steps for phone SSH apps.
+Tailscale SSH cannot run *on* Windows; use the built-in OpenSSH Server there.
 
 ### Uninstall
 
@@ -110,7 +133,29 @@ You can also set it from **Screen → "Screen: …"** in the web app. The settin
 | macOS | `caffeinate -d -i -w <pid>` |
 | Linux | `systemd-inhibit --what=idle:sleep`, plus `xset s reset` / `dpms force on` on X11 |
 
-If none of these is available, it falls back to a 1-pixel mouse nudge. Each helper is tied to the ActiveDesk process, so a crash can never leave a machine stuck awake.
+On top of the OS call, ActiveDesk **nudges input every 30 s**: a Shift tap plus a 1-pixel pointer move, and
+**never a click**. This also resets idle timers that ignore the OS call (for example, chat apps that mark you
+"away"). The web app shows the method in use and when the last nudge happened. Each helper is tied to the ActiveDesk process, so a crash can never leave a machine stuck awake.
+
+## Power mode, brightness and auto power saver
+
+```
+activedesk power install          # once per computer: lets the node change power settings
+activedesk power status
+activedesk power mode <id>        # ids come from `power status` (e.g. saver / balanced / performance)
+activedesk power brightness 60
+activedesk power saver 20 40      # on battery below 20 %: saver mode, dim to 40 %. Restored when plugged in.
+activedesk power saver off
+activedesk power uninstall
+```
+
+The same controls are on the web app's **Power** tab. The battery section only appears on devices that have a battery.
+
+| OS | Power mode | Brightness |
+|---|---|---|
+| Windows | `powercfg` plans | WMI (built-in screens) |
+| Linux / Pi | power-profiles-daemon, or CPU governors | `brightnessctl` or the sysfs backlight |
+| macOS | `pmset` Low Power Mode (sudoers rule added by `power install`) | Not available to apps |
 
 ## Battery charge range
 
@@ -120,7 +165,7 @@ No operating system lets an ordinary app pause charging, so each computer needs 
 
 ```
 activedesk battery install        # once per computer (UAC prompt on Windows, sudo on Linux)
-activedesk battery 40 80          # set and switch on   (or use the web app: Devices → Battery)
+activedesk battery 40 80          # set and switch on   (or use the web app: Power → Battery)
 activedesk battery off | on | status | uninstall
 ```
 
