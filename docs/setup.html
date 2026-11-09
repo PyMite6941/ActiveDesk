@@ -38,6 +38,20 @@
       <pre><span class="prompt">&gt;</span> irm https://pymite6941.github.io/ActiveDesk/install.ps1 | iex</pre>
     </div>
 
+    <p>What the installer does:</p>
+    <ol>
+      <li>Checks for Java and Tailscale. Offers to install them if missing.</li>
+      <li>Downloads <code>activedesk.jar</code> from the latest release.</li>
+      <li>Checks its SHA-256 against <code>SHA256SUMS.txt</code>. It stops if they don&#8217;t match.</li>
+      <li>Adds the <code>activedesk</code> command and starts the setup wizard.</li>
+    </ol>
+    <p>Optional settings (set them before running the installer):</p>
+    <ul>
+      <li><code>ACTIVEDESK_VERSION</code>: install a specific release, e.g. <code>v1.0.0</code>.</li>
+      <li><code>ACTIVEDESK_JAR</code>: use a jar you already have instead of downloading.</li>
+      <li><code>ACTIVEDESK_YES=1</code>: accept every default, no questions.</li>
+    </ul>
+
     <p>Or install manually — the release bundles already include Java, so nothing else is needed except Tailscale:</p>
     <ul>
       <li><b>Windows:</b> download <code>ActiveDesk-windows-x64.zip</code> from <a href="https://github.com/PyMite6941/ActiveDesk/releases/tag/v1.0.0">Releases v1.0.0</a>, extract it, run <code>activedesk.exe</code>.</li>

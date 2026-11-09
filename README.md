@@ -135,7 +135,7 @@ You can also set it from **Screen → "Screen: …"** in the web app. The settin
 
 On top of the OS call, ActiveDesk **nudges input every 30 s**: a Shift tap plus a 1-pixel pointer move, and
 **never a click**. This also resets idle timers that ignore the OS call (for example, chat apps that mark you
-"away"). The web app shows the method in use and when the last nudge happened. Each helper is tied to the ActiveDesk process, so a crash can never leave a machine stuck awake.
+"away"). Each helper is tied to the ActiveDesk process, so a crash can never leave a machine stuck awake.
 
 ## Power mode, brightness and auto power saver
 
