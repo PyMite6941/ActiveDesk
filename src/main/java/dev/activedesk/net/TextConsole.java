@@ -175,11 +175,17 @@ public final class TextConsole {
                 var st = ps.state();
                 StringBuilder sb = new StringBuilder("OK power");
                 sb.append(ps.hasBattery() ? " | battery " + ps.percent() + "%" + (ps.onBattery() ? " on battery" : " plugged in") : " | no battery");
-                sb.append(" | mode ").append(st.get("profile").toString().isEmpty() ? "n/a" : st.get("profile"));
                 List<?> profiles = (List<?>) st.get("profiles");
+                String cur = st.get("profile").toString(), curName = cur.isEmpty() ? "n/a" : cur;
+                for (Object o : profiles) {
+                    var m = (java.util.Map<?, ?>) o;
+                    if (cur.equals(m.get("id"))) curName = String.valueOf(m.get("name"));
+                }
+                sb.append(" | mode ").append(curName);
                 if (!profiles.isEmpty()) {
                     sb.append(" (choices:");
-                    for (Object o : profiles) sb.append(' ').append(((java.util.Map<?, ?>) o).get("id"));
+                    String sep = " ";
+                    for (Object o : profiles) { sb.append(sep).append('"').append(((java.util.Map<?, ?>) o).get("name")).append('"'); sep = ", "; }
                     sb.append(')');
                 }
                 sb.append(" | brightness ").append(((Number) st.get("brightness")).intValue() >= 0 ? st.get("brightness") + "%" : "n/a");

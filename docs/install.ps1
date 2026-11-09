@@ -112,7 +112,7 @@ $cmdFile = Join-Path $AppDir 'activedesk.cmd'
 Set-Content -Encoding ASCII -Path $cmdFile -Value @(
     '@echo off',
     'rem created by the ActiveDesk installer',
-    "`"$java`" -cp `"$jar;$AppDir\lib\*`" dev.activedesk.ActiveDesk %*"
+    "`"$java`" -cp `"%~sdp0activedesk.jar;%~sdp0lib\*`" dev.activedesk.ActiveDesk %*"   # short path: non-ASCII user names stay safe
 )
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($userPath -split ';') -notcontains $AppDir) {
@@ -121,17 +121,25 @@ if (($userPath -split ';') -notcontains $AppDir) {
 }
 $env:Path += ";$AppDir"
 
-# Start-menu shortcut that opens the web app on this computer
-$lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'ActiveDesk.url'
-Set-Content -Encoding ASCII -Path $lnk -Value @('[InternetShortcut]', 'URL=http://127.0.0.1:47801/')
-Say "Start menu: 'ActiveDesk' opens the app in your browser."
+# Start-menu shortcut: starts ActiveDesk if needed and opens the app (no console window)
+$programs = [Environment]::GetFolderPath('Programs')
+Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $programs 'ActiveDesk.url')   # older installers made a plain link
+$sc = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $programs 'ActiveDesk.lnk'))
+$sc.TargetPath = $javaw
+$sc.Arguments = "-cp `"$jar;$AppDir\lib\*`" dev.activedesk.ActiveDesk"
+$sc.WorkingDirectory = $AppDir
+$sc.Description = 'ActiveDesk: open the app'
+$sc.Save()
+Say "Start menu: 'ActiveDesk' starts it if needed and opens the app in your browser."
 
 # 5. Setup wizard ----------------------------------------------------------------------------------
 Step '5/5' 'Setup wizard'
 $wizArgs = @('-cp', "$jar;$AppDir\lib\*", 'dev.activedesk.ActiveDesk', 'setup')
 if ($Yes) { $wizArgs += '--yes' }
 & $java @wizArgs
+if ($LASTEXITCODE -ne 0) { Fail "The setup wizard stopped with an error (exit $LASTEXITCODE). Fix it, then run: activedesk setup" }
 if (Ask 'Start ActiveDesk now (in the background)?' $true) {
-    Start-Process -FilePath $javaw -ArgumentList @('-cp', "`"$jar;$AppDir\lib\*`"", 'dev.activedesk.ActiveDesk', 'run') -WindowStyle Hidden
-    Say 'Running. Open http://127.0.0.1:47801/ on this computer.'
+    # no command = start the node and open the app in the browser
+    Start-Process -FilePath $javaw -ArgumentList @('-cp', "`"$jar;$AppDir\lib\*`"", 'dev.activedesk.ActiveDesk') -WindowStyle Hidden
+    Say 'Running. The app opens in your browser (http://127.0.0.1:47801/). Next time, just run: activedesk'
 }

@@ -40,6 +40,7 @@ final class Installer {
         // window style 0 = hidden; no console window at login
         String body = "' Starts ActiveDesk at login (created by 'activedesk install-service')\r\n"
                 + "CreateObject(\"Wscript.Shell\").Run \"" + line + "\", 0, False\r\n";
+        Files.createDirectories(startup); // missing on fresh or redirected profiles
         Files.writeString(vbs, body, StandardCharsets.UTF_8);
         System.out.println("Installed: " + vbs);
         System.out.println("ActiveDesk will start hidden every time you sign in. Remove that file to undo.");

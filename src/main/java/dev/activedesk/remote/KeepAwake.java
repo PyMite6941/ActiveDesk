@@ -78,7 +78,11 @@ public final class KeepAwake {
     /** Is the display currently being held on? */
     public synchronized boolean holding() { return (helper != null && helper.isAlive()) || (helperFailed && active()); }
 
-    public String method() { return method + (screen.available() ? " + input nudge every 30 s" : ""); }
+    public String method() {
+        if (mode == Mode.OFF) return "off";
+        if (!active()) return "idle (holds while a session is active)";
+        return method + (screen.available() ? " + input nudge every 30 s" : "");
+    }
 
     /** Epoch ms of the last input nudge (0 = none yet). */
     public long lastNudge() { return lastNudge; }

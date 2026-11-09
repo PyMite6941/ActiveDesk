@@ -86,11 +86,17 @@
 
   <section>
     <h2>3. Run</h2>
-    <p>Start the node (default command — no arguments needed):</p>
+    <p>Open the app:</p>
     <pre><span class="prompt">$</span> activedesk</pre>
-    <p>Or explicitly:</p>
+    <ol>
+      <li>It starts ActiveDesk if it isn&#8217;t running yet.</li>
+      <li>It opens the app in your browser at <code>http://127.0.0.1:47801/</code>.</li>
+      <li>Enter your PIN.</li>
+    </ol>
+    <p>Already running? It just opens the browser. On a device with no screen (like a headless Pi), it prints the address instead.</p>
+    <p>To start ActiveDesk without opening a browser (for servers and scripts):</p>
     <pre><span class="prompt">$</span> activedesk run</pre>
-    <p>This starts the peer-to-peer network and the web UI at <code>http://127.0.0.1:47801/</code> (and your Tailscale address). Open that URL from your phone or another computer over Tailscale, enter the PIN, and you are connected.</p>
+    <p>From your phone or another computer, open <code>http://&lt;tailscale-ip&gt;:47801/</code> over Tailscale and enter the PIN.</p>
     <p>To start automatically at login, run <code>activedesk install-service</code> (Startup entry on Windows, LaunchAgent on macOS, XDG autostart on Linux).</p>
   </section>
 
@@ -122,7 +128,8 @@
     <table>
       <thead><tr><th>Command</th><th>What it does</th></tr></thead>
       <tbody>
-        <tr><td><code>activedesk</code> / <code>activedesk run</code></td><td>Start this device's node (default).</td></tr>
+        <tr><td><code>activedesk</code></td><td>Start ActiveDesk if needed and open the app in your browser.</td></tr>
+        <tr><td><code>activedesk run</code></td><td>Start ActiveDesk only, no browser (used by autostart).</td></tr>
         <tr><td><code>activedesk setup</code></td><td>Guided first-time setup wizard (PIN, Tailscale check, autostart, power).</td></tr>
         <tr><td><code>activedesk setup --yes</code></td><td>Accept all setup defaults without asking.</td></tr>
         <tr><td><code>activedesk install-service</code></td><td>Start ActiveDesk automatically at login/boot.</td></tr>

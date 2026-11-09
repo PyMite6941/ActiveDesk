@@ -106,7 +106,13 @@ final class Setup {
 
         // 7. Start automatically ---------------------------------------------------------------------
         step(7, "Start automatically");
-        if (ask("Start ActiveDesk every time this device starts?", true)) Installer.install();
+        if (ask("Start ActiveDesk every time this device starts?", true)) {
+            try {
+                Installer.install();
+            } catch (Exception e) {
+                say("Could not set up autostart (" + e.getMessage() + "). Try later:  activedesk install-service");
+            }
+        }
 
         // Done ---------------------------------------------------------------------------------------
         title("All set");
@@ -114,7 +120,7 @@ final class Setup {
         if (st.running() && st.self().ipv4() != null)
             say("On your phone (with Tailscale on) open:  http://" + st.self().ipv4() + ":" + c.webPort() + "/");
         say("On this device:  http://127.0.0.1:" + c.webPort() + "/");
-        say("Start it now:    activedesk run");
+        say("Open the app:    activedesk   (starts it if needed)");
         say("Help:            https://pymite6941.github.io/ActiveDesk/");
     }
 

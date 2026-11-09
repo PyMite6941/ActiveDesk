@@ -186,7 +186,8 @@ Thresholds that existed before are saved and restored. If ActiveDesk is killed, 
 ## CLI and `nc`
 
 ```
-activedesk                      run the node (default)
+activedesk                      start the node if needed and open the app in your browser
+activedesk run                  start the node only, no browser (what autostart uses)
 activedesk chat [room]          terminal chat           |  nc <device> 47800  (same thing, no Java needed)
 activedesk send <device> <file> send a file
 activedesk who | tasks          devices / scheduled tasks

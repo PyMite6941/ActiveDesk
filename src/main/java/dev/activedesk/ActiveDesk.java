@@ -25,10 +25,13 @@ public final class ActiveDesk {
     private ActiveDesk() {}
 
     public static void main(String[] args) throws Exception {
-        String cmd = args.length == 0 ? "run" : args[0].toLowerCase(Locale.ROOT);
+        // No arguments (double-click, Start menu, plain `activedesk`): start the node if needed and
+        // open the app in the browser. `run` stays silent, for autostart at login and services.
+        String cmd = args.length == 0 ? "open" : args[0].toLowerCase(Locale.ROOT);
         List<String> rest = Arrays.asList(args).subList(Math.min(1, args.length), args.length);
         switch (cmd) {
-            case "run" -> run();
+            case "run" -> run(false);
+            case "open", "gui", "app" -> open();
             case "chat" -> chat(rest.isEmpty() ? "general" : rest.get(0));
             case "send" -> {
                 if (rest.size() < 2) usage();
@@ -65,8 +68,10 @@ public final class ActiveDesk {
             case "uninstall" -> System.exit(dev.activedesk.power.PowerSetup.uninstall(Config.load(), true, System.out::println));
             case "status" -> System.exit(local(List.of("/power"), done, 15_000) ? 0 : 1);
             case "mode", "brightness" -> {
-                if (rest.size() != 2 || !rest.get(1).matches("[A-Za-z0-9._{}-]{1,80}")) usage();
-                System.exit(local(List.of("/power " + sub + " " + rest.get(1)), done, 20_000) ? 0 : 1);
+                // mode names can contain spaces ("Ultimate Performance"), so join the rest
+                String arg = rest.size() < 2 ? "" : String.join(" ", rest.subList(1, rest.size()));
+                if (!arg.matches("[A-Za-z0-9._{}() -]{1,80}") || ("brightness".equals(sub) && rest.size() != 2)) usage();
+                System.exit(local(List.of("/power " + sub + " " + arg), done, 20_000) ? 0 : 1);
             }
             case "saver" -> {
                 if (rest.size() < 2 || rest.size() > 3 || !String.join(" ", rest.subList(1, rest.size())).matches("off|[0-9]{1,2}( [0-9]{1,3})?")) usage();
@@ -95,7 +100,8 @@ public final class ActiveDesk {
         System.out.println(String.join("\n",
                 "ActiveDesk " + Hub.VERSION + " - private chat, file transfer, remote screen and task scheduler over Tailscale",
                 "",
-                "  activedesk run                 start this device's node (default)",
+                "  activedesk                     start the node if needed and open the app in your browser",
+                "  activedesk run                 start the node only, no browser (autostart, services)",
                 "  activedesk chat [room]         chat in the terminal (or: nc <device> 47800)",
                 "  activedesk send <device> <file>  send a file to another device",
                 "  activedesk who                 connected devices",
@@ -105,7 +111,7 @@ public final class ActiveDesk {
                 "  activedesk awake [off|session|always]  keep the screen on (session = while being controlled)",
                 "  activedesk setup               guided first-time setup (PIN, Tailscale check, autostart, power)",
                 "  activedesk power install       one-time admin/root setup for power mode, brightness and charge limits",
-                "  activedesk power [status|mode <id>|brightness <1-100>|saver off|saver <below%> [dim%]]",
+                "  activedesk power [status|mode <name|id>|brightness <1-100>|saver off|saver <below%> [dim%]]",
                 "  activedesk battery <min> <max> only charge between min% and max% while ActiveDesk runs (e.g. 40 80)",
                 "  activedesk battery on|off|status|uninstall",
                 "  activedesk pin                 set a new web PIN (old sessions keep working until 'lock')",
@@ -117,7 +123,39 @@ public final class ActiveDesk {
 
     // ------------------------------------------------------------------ run
 
-    private static void run() throws Exception {
+    /** Open the web app; start the node first when none is running on this device. */
+    private static void open() throws Exception {
+        Config config = Config.load();
+        if (canConnect(config.peerPort())) {
+            String url = "http://127.0.0.1:" + config.webPort() + "/";
+            System.out.println("ActiveDesk is already running. Opening " + url);
+            if (!openBrowser(url)) System.out.println("Could not open a browser here. Open " + url + " yourself.");
+            return;
+        }
+        run(true);
+    }
+
+    /** Best effort: true when a browser was asked to open the URL. */
+    static boolean openBrowser(String url) {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        try {
+            if (os.contains("win")) {
+                new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
+                return true;
+            }
+            if (os.contains("mac")) {
+                new ProcessBuilder("open", url).start();
+                return true;
+            }
+            if (System.getenv("DISPLAY") == null && System.getenv("WAYLAND_DISPLAY") == null) return false; // headless Pi / server
+            new ProcessBuilder("xdg-open", url).redirectErrorStream(true).start();
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static void run(boolean openApp) throws Exception {
         Config config = Config.load();
         Log.init(config.home().resolve("activedesk.log"), false);
         Node node = new Node(config);
@@ -125,7 +163,10 @@ public final class ActiveDesk {
         Tailscale.Status st = node.tailscale().status();
         System.out.println();
         System.out.println("  ActiveDesk " + Hub.VERSION + " running as '" + config.deviceName() + "'");
-        if (st.running() && st.self().ipv4() != null) {
+        boolean tsBind = config.get("bind.tailscale").isBlank() || config.getBool("bind.tailscale");
+        if (!tsBind) {
+            System.out.println("  bind.tailscale=false: listening on this computer only, http://127.0.0.1:" + config.webPort() + "/");
+        } else if (st.running() && st.self().ipv4() != null) {
             System.out.println("  Open on your phone / other computer (Tailscale on):  http://" + st.self().ipv4() + ":" + config.webPort() + "/");
             System.out.println("  Terminal chat from any tailnet device:               nc " + st.self().ipv4() + " " + config.peerPort());
         } else {
@@ -138,6 +179,12 @@ public final class ActiveDesk {
             System.out.println("  Forgot it? Run 'activedesk pin' to set a new one.");
         }
         System.out.println("  Data folder: " + config.home());
+        if (openApp) {
+            String url = "http://127.0.0.1:" + config.webPort() + "/";
+            System.out.println(openBrowser(url) ? "  Opened the app in your browser: " + url
+                    : "  Open the app on this computer:  " + url);
+            System.out.println("  Keep this window open while you use ActiveDesk (closing it stops it).");
+        }
         System.out.println();
         CountDownLatch done = new CountDownLatch(1);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

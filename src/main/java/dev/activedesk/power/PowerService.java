@@ -91,10 +91,20 @@ public final class PowerService {
 
     // ------------------------------------------------------------------ settings
 
-    public synchronized void setProfile(String id) throws IOException {
-        if (profiles.stream().noneMatch(p -> p.id().equals(id))) throw new IllegalArgumentException("unknown power mode " + id);
+    /** Accepts a mode id or its name (case-insensitive, e.g. "balanced"). */
+    public synchronized void setProfile(String idOrName) throws IOException {
+        String id = resolveProfile(idOrName);
+        if (id == null) throw new IllegalArgumentException("unknown power mode " + idOrName);
         applyProfile(id);
         refresh();
+    }
+
+    /** The id for an id or a (case-insensitive) name, or null when nothing matches. */
+    public synchronized String resolveProfile(String idOrName) {
+        String q = idOrName == null ? "" : idOrName.trim();
+        for (Profile p : profiles) if (p.id().equals(q)) return p.id();
+        for (Profile p : profiles) if (p.name().equalsIgnoreCase(q)) return p.id();
+        return null;
     }
 
     public synchronized void setBrightness(int pct) throws IOException {
@@ -197,6 +207,11 @@ public final class PowerService {
                 if (m.group(3) != null) cur = m.group(1).toLowerCase();
             }
         }
+        // `powercfg /list` can omit plans that aren't active (seen on a Modern Standby laptop: with
+        // Balanced active, Ultimate Performance vanished from the list), which made switching back
+        // impossible. Keep every plan seen this run; powercfg /setactive still rejects a dead id.
+        for (Profile seen : profiles)
+            if (list.stream().noneMatch(p -> p.id().equals(seen.id()))) list.add(seen);
         profiles = List.copyOf(list);
         current = cur;
         profileBackend = list.isEmpty() ? "" : "Windows power plans";
