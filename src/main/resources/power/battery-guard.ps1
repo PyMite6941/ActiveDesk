@@ -97,7 +97,7 @@ if ($null -eq $Backend) {
 
 $applied = ''
 $holding = $false
-$stillCharging = 0
+$remHist = @()
 $first = $true
 $failed = $false
 try {
@@ -123,8 +123,13 @@ try {
             if ("$want" -ne $applied) { & $Backend.apply $want; $applied = "$want" }
             # Trust the battery, not the firmware's "OK": some models (several ASUS Vivobooks) accept the
             # limit but only apply it after the charger is reconnected. Say so instead of claiming a pause.
-            if ($holding -and $st -and $st.Charging -and $st.PowerOnline) { $stillCharging++ } else { $stillCharging = 0 }
-            $msg = if ($holding -and $stillCharging -ge 2) { "limit set to $($cfg.min)% but the battery is still charging - unplug the charger and plug it back in to apply it" }
+            # Judge by stored energy, not the Charging flag: Windows reports Charging=True even while the
+            # battery only trickles a few mWh. "Still charging" = gained >0.5% of capacity over ~2 minutes.
+            $full = (Get-CimInstance -Namespace root/wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object -First 1).FullChargedCapacity
+            if ($holding -and $st -and $st.PowerOnline -and $full) { $remHist += , [int64]$st.RemainingCapacity } else { $remHist = @() }
+            if ($remHist.Count -gt 5) { $remHist = $remHist[-5..-1] }
+            $stillCharging = $remHist.Count -ge 5 -and ($remHist[-1] - $remHist[0]) -gt ($full * 0.005)
+            $msg = if ($stillCharging) { "limit set to $($cfg.min)% but the battery is still charging - unplug the charger and plug it back in to apply it" }
                    elseif ($holding) { "charging paused at $pct% until it drops to $($cfg.min)%" }
                    else { "charging allowed up to $($cfg.max)%" }
         }
