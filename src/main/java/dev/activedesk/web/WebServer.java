@@ -468,7 +468,11 @@ public final class WebServer {
         announceControl(s, true);
         node.indicator().touch(shortWho(s.who()), true);
         node.keepAwake().activity();
-        node.screen().input(b);
+        try {
+            node.screen().input(b);
+        } catch (IOException e) { // bad event from the client (unknown key, text too long...)
+            throw new HttpError(400, e.getMessage());
+        }
         json(ex, 200, Json.o("ok", true));
     }
 

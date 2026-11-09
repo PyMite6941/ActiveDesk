@@ -159,7 +159,15 @@ public final class ActiveDesk {
         Config config = Config.load();
         Log.init(config.home().resolve("activedesk.log"), false);
         Node node = new Node(config);
-        node.start();
+        try {
+            node.start();
+        } catch (java.net.BindException e) {
+            System.err.println("  Can't start: port " + config.peerPort() + " or " + config.webPort()
+                    + " is already in use. ActiveDesk is probably already running (check: activedesk status),"
+                    + " or another program uses that port (change peer.port / web.port in "
+                    + config.home().resolve("config.properties") + ").");
+            System.exit(1);
+        }
         Tailscale.Status st = node.tailscale().status();
         System.out.println();
         System.out.println("  ActiveDesk " + Hub.VERSION + " running as '" + config.deviceName() + "'");

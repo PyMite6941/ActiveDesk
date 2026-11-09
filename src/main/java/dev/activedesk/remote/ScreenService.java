@@ -33,9 +33,18 @@ public final class ScreenService {
     private final String unavailableReason;
     private final boolean mac = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
 
-    private volatile boolean pasteMode;
+    /**
+     * Gaps between synthetic key events. With none, apps that read modifier state asynchronously
+     * (Windows 11 Notepad, Electron/WinUI apps, browsers under load) see the key after Shift/Ctrl was
+     * already released, so "A" arrives as "a", "!" as "1" and ctrl+v as a plain "v".
+     */
+    private static final int MOD_HOLD_MS = 35, KEY_GAP_MS = 10;
 
-    /** typeMode "keys" (default: real key presses, US layout, falls back to paste) or "paste". */
+    private volatile boolean pasteMode;
+    /** Windows: types text as Unicode characters (no Shift races, any layout). Null elsewhere. */
+    private final WinTyper winTyper = System.getProperty("os.name", "").startsWith("Windows") ? new WinTyper() : null;
+
+    /** typeMode "keys" (default: Unicode input on Windows, else real key presses, US layout, falls back to paste) or "paste". */
     public void setTypeMode(String mode) { pasteMode = "paste".equalsIgnoreCase(mode); }
 
     public ScreenService(boolean enabled) {
@@ -152,7 +161,8 @@ public final class ScreenService {
             case "key" -> key(String.valueOf(e.getOrDefault("key", "")));
             case "type" -> {
                 String t = String.valueOf(e.getOrDefault("text", ""));
-                if (pasteMode) type(t); else typeKeys(t);
+                if (pasteMode) type(t);
+                else if (winTyper == null || t.length() > 2000 || !winTyper.type(t)) typeKeys(t);
             }
             case "wakeDisplay" -> {
                 // nudge: tiny mouse move + a harmless key, wakes a dimmed screen / screensaver
@@ -175,9 +185,9 @@ public final class ScreenService {
         List<Integer> codes = new ArrayList<>();
         for (String part : chord.toLowerCase(Locale.ROOT).split("\\+")) codes.add(code(part.trim()));
         try {
-            for (int c : codes) robot.keyPress(c);
+            for (int c : codes) { robot.keyPress(c); if (codes.size() > 1) robot.delay(MOD_HOLD_MS); }
         } finally {
-            for (int i = codes.size() - 1; i >= 0; i--) robot.keyRelease(codes.get(i));
+            for (int i = codes.size() - 1; i >= 0; i--) { robot.keyRelease(codes.get(i)); if (codes.size() > 1) robot.delay(MOD_HOLD_MS); }
         }
     }
 
@@ -236,15 +246,27 @@ public final class ScreenService {
             else if (ch == '\t') code = KeyEvent.VK_TAB;
             else if (SHIFTED.indexOf(ch) >= 0) { code = punct(UNSHIFTED.charAt(SHIFTED.indexOf(ch))); shift = true; }
             else if (UNSHIFTED.indexOf(ch) >= 0) code = punct(ch);
-            else { type(String.valueOf(ch)); continue; }
-            if (shift) robot.keyPress(KeyEvent.VK_SHIFT);
+            else { // no US key: paste this whole run of such characters in one go
+                int j = i + 1;
+                while (j < text.length() && !usKey(text.charAt(j))) j++;
+                type(text.substring(i, j));
+                i = j - 1;
+                continue;
+            }
+            if (shift) { robot.keyPress(KeyEvent.VK_SHIFT); robot.delay(MOD_HOLD_MS); }
             try {
                 robot.keyPress(code);
                 robot.keyRelease(code);
             } finally {
-                if (shift) robot.keyRelease(KeyEvent.VK_SHIFT);
+                if (shift) { robot.delay(MOD_HOLD_MS); robot.keyRelease(KeyEvent.VK_SHIFT); }
             }
+            robot.delay(KEY_GAP_MS);
         }
+    }
+
+    private static boolean usKey(char ch) {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == ' '
+                || ch == '\n' || ch == '\t' || SHIFTED.indexOf(ch) >= 0 || UNSHIFTED.indexOf(ch) >= 0;
     }
 
     private static int punct(char c) {
@@ -274,5 +296,6 @@ public final class ScreenService {
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
         robot.delay(30);
         key(mac ? "meta+v" : "ctrl+v");
+        robot.delay(60); // apps read the clipboard asynchronously: don't let the next paste replace it first
     }
 }

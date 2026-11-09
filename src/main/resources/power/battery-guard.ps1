@@ -97,6 +97,7 @@ if ($null -eq $Backend) {
 
 $applied = ''
 $holding = $false
+$stillCharging = 0
 $first = $true
 $failed = $false
 try {
@@ -120,7 +121,12 @@ try {
             elseif ($first) { $holding = $false }   # starting in between: top up to max, then hold
             $want = if ($holding) { $cfg.min } else { $cfg.max }
             if ("$want" -ne $applied) { & $Backend.apply $want; $applied = "$want" }
-            $msg = if ($holding) { "charging paused at $pct% until it drops to $($cfg.min)%" } else { "charging allowed up to $($cfg.max)%" }
+            # Trust the battery, not the firmware's "OK": some models (several ASUS Vivobooks) accept the
+            # limit but only apply it after the charger is reconnected. Say so instead of claiming a pause.
+            if ($holding -and $st -and $st.Charging -and $st.PowerOnline) { $stillCharging++ } else { $stillCharging = 0 }
+            $msg = if ($holding -and $stillCharging -ge 2) { "limit set to $($cfg.min)% but the battery is still charging - unplug the charger and plug it back in to apply it" }
+                   elseif ($holding) { "charging paused at $pct% until it drops to $($cfg.min)%" }
+                   else { "charging allowed up to $($cfg.max)%" }
         }
         $first = $false
 
