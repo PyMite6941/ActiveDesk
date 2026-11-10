@@ -135,6 +135,13 @@ case ":$PATH:" in
   *) say "Add it to your PATH (then open a new terminal):  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.profile" ;;
 esac
 
+# Updating: a copy that is already running keeps the old version until it restarts.
+if have systemctl && systemctl --user is-active --quiet activedesk 2>/dev/null; then
+  systemctl --user restart activedesk && say "Restarted the ActiveDesk service with the new version."
+elif have pgrep && pgrep -f "$APP_DIR/activedesk.jar" >/dev/null 2>&1; then
+  say "ActiveDesk is still running the old version. Restart it (or log out and in) to use the new one."
+fi
+
 # 5. Setup wizard ----------------------------------------------------------------------------------
 step 5/5 "Setup wizard"
 if [ -n "$TTY" ]; then "$BIN_DIR/activedesk" setup < "$TTY"; else "$BIN_DIR/activedesk" setup --yes; fi

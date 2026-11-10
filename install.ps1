@@ -85,6 +85,25 @@ if (Test-Path "$env:ProgramFiles\Tailscale\tailscale.exe") {
 Step '3/5' 'Download ActiveDesk'
 New-Item -ItemType Directory -Force -Path $AppDir, (Join-Path $AppDir 'lib') | Out-Null
 $jar = Join-Path $AppDir 'activedesk.jar'
+
+# Updating: Windows can't replace a jar that a running ActiveDesk has open, so stop that copy first
+# (only the one started from this folder, matched by its long or 8.3 short path) and restart it at the end.
+function Stop-RunningActiveDesk {
+    $paths = @($jar)
+    if (Test-Path -LiteralPath $jar) {
+        try { $paths += (New-Object -ComObject Scripting.FileSystemObject).GetFile($jar).ShortPath } catch { }
+    }
+    $procs = @(Get-CimInstance Win32_Process -Filter "Name='java.exe' OR Name='javaw.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $cl = $_.CommandLine; $cl -and ($paths | Where-Object { $cl.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 }) })
+    foreach ($p in $procs) {
+        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $p.ProcessId -Timeout 15 -ErrorAction SilentlyContinue
+    }
+    if ($procs.Count) { Say "Stopped the running ActiveDesk so it can be updated (it starts again at the end)." }
+    return [bool]$procs.Count
+}
+$wasRunning = Stop-RunningActiveDesk
+
 if ($env:ACTIVEDESK_JAR) {
     Copy-Item -LiteralPath $env:ACTIVEDESK_JAR -Destination $jar -Force
     Say "Using local jar $env:ACTIVEDESK_JAR"
@@ -138,7 +157,7 @@ $wizArgs = @('-cp', "$jar;$AppDir\lib\*", 'dev.activedesk.ActiveDesk', 'setup')
 if ($Yes) { $wizArgs += '--yes' }
 & $java @wizArgs
 if ($LASTEXITCODE -ne 0) { Fail "The setup wizard stopped with an error (exit $LASTEXITCODE). Fix it, then run: activedesk setup" }
-if (Ask 'Start ActiveDesk now (in the background)?' $true) {
+if ($wasRunning -or (Ask 'Start ActiveDesk now (in the background)?' $true)) {
     # no command = start the node and open the app in the browser
     Start-Process -FilePath $javaw -ArgumentList @('-cp', "`"$jar;$AppDir\lib\*`"", 'dev.activedesk.ActiveDesk') -WindowStyle Hidden
     Say 'Running. The app opens in your browser (http://127.0.0.1:47801/). Next time, just run: activedesk'
