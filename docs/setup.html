@@ -40,14 +40,14 @@
 
     <p>What the installer does:</p>
     <ol>
-      <li>Checks for Java and Tailscale. Offers to install them if missing.</li>
+      <li>Checks for Java and Tailscale. Offers to install them if missing. On Linux it installs Java with your package manager: apt (Debian, Ubuntu, Raspberry Pi OS, Mint), dnf (Fedora, RHEL, Rocky, Alma, Amazon Linux 2023), yum, pacman (Arch, Manjaro), zypper (openSUSE), apk (Alpine) or xbps (Void). Every one of these is tested on each change.</li>
       <li>Downloads <code>activedesk.jar</code> from the latest release.</li>
       <li>Checks its SHA-256 against <code>SHA256SUMS.txt</code>. It stops if they don&#8217;t match.</li>
       <li>Adds the <code>activedesk</code> command and starts the setup wizard.</li>
     </ol>
     <p>Optional settings (set them before running the installer):</p>
     <ul>
-      <li><code>ACTIVEDESK_VERSION</code>: install a specific release, e.g. <code>v1.0.0</code>.</li>
+      <li><code>ACTIVEDESK_VERSION</code>: install a specific release, e.g. <code>v1.0.1</code>.</li>
       <li><code>ACTIVEDESK_JAR</code>: use a jar you already have instead of downloading.</li>
       <li><code>ACTIVEDESK_YES=1</code>: accept every default, no questions.</li>
     </ul>

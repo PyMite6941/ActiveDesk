@@ -37,6 +37,7 @@ find each other over your **Tailscale** tailnet.
    - Windows: `winget install EclipseAdoptium.Temurin.21.JRE`
    - macOS: `brew install --cask temurin`
    - Raspberry Pi / Debian / Ubuntu: `sudo apt install openjdk-17-jre`
+   - Other Linux: the one-line installer (`curl -fsSL https://pymite6941.github.io/ActiveDesk/install.sh | sh`) installs Java with dnf, yum, pacman, zypper, apk or xbps. CI tests it on Debian, Ubuntu, Fedora, Rocky, Amazon Linux, Arch, openSUSE, Alpine and Void.
 3. Get ActiveDesk, either way:
    - From [Releases](../../releases): the portable `activedesk.jar`, or a per-OS bundle.
    - Build it: `./build.sh` (Linux/macOS) or `build.cmd` (Windows), which produces `dist/activedesk.jar`.
@@ -100,7 +101,7 @@ For HTTPS, run `tailscale serve --bg 47801` on the device and open `https://<dev
 |---|---|
 | Mouse | Move, click, drag and wheel map 1:1. |
 | Touch | Tap = click. Long-press = right-click. Drag = drag. Two fingers = scroll. |
-| Keyboard | Physical keyboards are forwarded directly. On phones, tap ⌨ to open the on-screen keyboard. Ctrl/Alt/Win chords are in the toolbar. |
+| Keyboard | Physical keyboards are forwarded directly. On Windows, text arrives as Unicode characters, so any keyboard layout and language types correctly. On phones, tap ⌨ to open the on-screen keyboard. Ctrl/Alt/Win chords are in the toolbar. |
 
 **Platform notes:**
 - **Raspberry Pi:** use the **X11** session (`sudo raspi-config` → Advanced → Wayland → X11). Wayland blocks screen capture for all apps.
@@ -180,6 +181,7 @@ activedesk battery off | on | status | uninstall
 Where the firmware only has a "stop at N %" limit (ASUS, some Linux drivers), ActiveDesk emulates the range:
 - At max, it lowers the limit to min. Charging **pauses**, the laptop runs on wall power and the percentage holds.
 - At min, it raises the limit back to max.
+- Some ASUS models accept a new limit but only apply it after the charger is reconnected. If the battery keeps gaining charge while it should be paused, `battery status` says so: unplug the charger and plug it back in.
 
 Thresholds that existed before are saved and restored. If ActiveDesk is killed, they are restored at the next start, or by `battery uninstall`.
 
