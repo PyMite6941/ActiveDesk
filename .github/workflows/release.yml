@@ -60,7 +60,7 @@ jobs:
           else
             tar -czf "../upload/ActiveDesk-${{ matrix.target }}.tar.gz" ActiveDesk*
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.target }}
           path: upload/*
