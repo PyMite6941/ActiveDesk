@@ -146,14 +146,14 @@ public final class Uninstaller {
     }
 
     /** Stops the node of this data folder (node.pid), never anything else. */
-    private static void stopNode(Path home, Consumer<String> out) throws InterruptedException {
+    static boolean stopNode(Path home, Consumer<String> out) throws InterruptedException {
         Path pidFile = home.resolve("node.pid");
         String id = Proc.read(pidFile);
-        if (!id.matches("\\d{1,10}")) { out.accept("ActiveDesk is not running."); return; }
+        if (!id.matches("\\d{1,10}")) { out.accept("ActiveDesk is not running."); return false; }
         Optional<ProcessHandle> ph = ProcessHandle.of(Long.parseLong(id));
         if (ph.isEmpty() || !ph.get().isAlive() || ph.get().pid() == ProcessHandle.current().pid() || !looksLikeNode(ph.get(), pidFile)) {
             out.accept("ActiveDesk is not running.");
-            return;
+            return false;
         }
         ProcessHandle p = ph.get();
         p.destroy(); // SIGTERM on Linux/macOS: the node's shutdown hook restores battery thresholds itself
@@ -161,6 +161,7 @@ public final class Uninstaller {
         if (p.isAlive()) p.destroyForcibly();
         try { Files.deleteIfExists(pidFile); } catch (IOException ignored) { }
         out.accept("Stopped the running ActiveDesk (process " + id + ").");
+        return true;
     }
 
     /** A java/ActiveDesk process that was already running when node.pid was written (not a reused PID). */

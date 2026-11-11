@@ -55,6 +55,7 @@ public final class ActiveDesk {
             case "status" -> status();
             case "install-service" -> Installer.install();
             case "uninstall" -> System.exit(dev.activedesk.power.Uninstaller.run(rest));
+            case "update", "upgrade" -> System.exit(dev.activedesk.power.Updater.run(rest));
             case "selftest" -> System.exit(SelfTest.run() ? 0 : 1);
             case "version", "--version", "-v" -> System.out.println("ActiveDesk " + Hub.VERSION);
             default -> usage();
@@ -120,6 +121,7 @@ public final class ActiveDesk {
                 "  activedesk pin                 set a new web PIN (old sessions keep working until 'lock')",
                 "  activedesk status              Tailscale + config summary",
                 "  activedesk install-service     start ActiveDesk automatically at login/boot",
+                "  activedesk update [--check]    install the latest release (checksum-verified) and restart ActiveDesk",
                 "  activedesk uninstall [--yes] [--purge]  remove ActiveDesk from this computer (--purge: also your data)",
                 "  activedesk selftest            run the built-in end-to-end test"));
         System.exit(2);

@@ -86,6 +86,18 @@ screen, such as a headless Pi). It shows a copyable command and the one-time ste
 Windows and macOS can't be Tailscale SSH servers, so they use their own SSH server, reached over Tailscale.
 The panel says when an SSH server is already running on the device. ActiveDesk does not relay or run a shell itself.
 
+### Update
+
+```
+activedesk update            # installs the latest release and restarts ActiveDesk if it was running
+activedesk update --check    # only say whether there is a newer release
+```
+
+The download is checked against the release's SHA-256 list and test-run before it replaces anything.
+On Windows the new jar is swapped in a few seconds after the command exits (Windows locks a running jar);
+the result is written to `~/.activedesk/update.log`. If the battery guard changed, Windows asks for admin
+permission once to update it. Running the one-line installer again also updates.
+
 ### Uninstall
 
 One command removes everything ActiveDesk put on the computer:
@@ -228,6 +240,7 @@ activedesk lock                 end every web / remote-control session immediate
 activedesk pin                  new web PIN
 activedesk status               Tailscale + config summary
 activedesk selftest             built-in end-to-end test (what CI runs)
+activedesk update [--check]     install the latest release and restart
 activedesk uninstall [--purge]  remove ActiveDesk from this computer
 ```
 

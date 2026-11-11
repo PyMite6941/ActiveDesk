@@ -101,7 +101,16 @@
   </section>
 
   <section>
-    <h2>4. Uninstall</h2>
+    <h2>4. Update</h2>
+    <div class="code-card" style="margin-top: 14px;">
+      <div class="code-top">Any computer</div>
+      <pre><span class="prompt">$</span> activedesk update</pre>
+    </div>
+    <p>Installs the latest release (checksum-verified and test-run first) and restarts ActiveDesk if it was running. <code>activedesk update --check</code> only says whether a newer release exists. On Windows the swap finishes a few seconds after the command exits; the result is in <code>~/.activedesk/update.log</code>. Running the one-line installer again also updates.</p>
+  </section>
+
+  <section>
+    <h2>5. Uninstall</h2>
     <p>One command removes everything ActiveDesk put on the computer:</p>
     <div class="code-card" style="margin-top: 14px;">
       <div class="code-top">Any computer</div>
@@ -143,6 +152,7 @@
         <tr><td><code>activedesk pin</code></td><td>Set a new web PIN.</td></tr>
         <tr><td><code>activedesk status</code></td><td>Tailscale + config summary.</td></tr>
         <tr><td><code>activedesk selftest</code></td><td>Run the built-in end-to-end test (what CI runs).</td></tr>
+        <tr><td><code>activedesk update [--check]</code></td><td>Install the latest release (checksum-verified) and restart ActiveDesk.</td></tr>
         <tr><td><code>activedesk uninstall [--yes] [--purge]</code></td><td>Remove ActiveDesk from this computer, normal charging restored first (<code>--purge</code>: also your data).</td></tr>
         <tr><td><code>activedesk power install</code></td><td>One-time admin/root setup for power mode, brightness, charge limits.</td></tr>
         <tr><td><code>activedesk power uninstall</code></td><td>Remove the power/battery privileged setup.</td></tr>

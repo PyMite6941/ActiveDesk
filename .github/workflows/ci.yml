@@ -86,9 +86,11 @@ jobs:
           PATH="$RUNNER_TEMP/fake:$PATH" ACTIVEDESK_JAR="$PWD/dist/activedesk.jar" sh install.sh
           "$HOME/.local/bin/activedesk" version
           grep -q 'web.pinHash=' "$ACTIVEDESK_HOME/config.properties"
-      - name: uninstall (Linux / macOS)
+      - name: update + uninstall (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
+          "$HOME/.local/bin/activedesk" update --jar "$PWD/dist/activedesk.jar" --force
+          "$HOME/.local/bin/activedesk" version
           "$HOME/.local/bin/activedesk" install-service
           "$HOME/.local/bin/activedesk" uninstall --yes --purge
           for f in "$HOME/.local/bin/activedesk" "$HOME/.local/share/activedesk" "$ACTIVEDESK_HOME" \
@@ -104,10 +106,15 @@ jobs:
           Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
           & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" version
           if (-not (Select-String -Quiet 'web.pinHash=' "$env:ACTIVEDESK_HOME\config.properties")) { exit 1 }
-      - name: uninstall (Windows)
+      - name: update + uninstall (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" update --jar (Resolve-Path dist/activedesk.jar).Path --force
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Start-Sleep -Seconds 10   # the jar is swapped right after the update command exits
+          if (-not (Select-String -Quiet 'updated to' "$env:ACTIVEDESK_HOME\update.log")) { 'update did not finish'; exit 1 }
+          if (Test-Path "$env:LOCALAPPDATA\ActiveDesk\activedesk.jar.new") { 'new jar left behind'; exit 1 }
           & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" install-service
           & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" uninstall --yes --purge
           if ($LASTEXITCODE -ne 0) { exit 1 }
