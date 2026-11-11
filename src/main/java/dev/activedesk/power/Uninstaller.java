@@ -214,8 +214,8 @@ public final class Uninstaller {
              .append(" Start-Sleep -Seconds 1 }\n");
         }
         String inner = Base64.getEncoder().encodeToString(s.toString().getBytes(StandardCharsets.UTF_16LE));
-        // Start-Process gives the helper its own (hidden) console, so closing this terminal doesn't kill it.
-        Proc.Result r = Proc.powershell(20, "Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " + inner + "'");
+        // detached, so closing this terminal doesn't kill it; hidden from the first frame (no window flash)
+        Proc.Result r = Proc.detachedHidden(inner);
         if (!r.ok()) throw new IOException("could not start the clean-up helper: " + r.out().trim());
     }
 

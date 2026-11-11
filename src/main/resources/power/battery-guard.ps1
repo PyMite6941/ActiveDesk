@@ -140,6 +140,16 @@ try {
         Set-ScheduledTask -InputObject $task -ErrorAction Stop | Out-Null
     }
 } catch { }
+# Same tasks ran with an Interactive logon, so every start put a PowerShell window on the desktop (hidden only
+# once PowerShell was up). S4U runs in the background session where no window can appear. Takes effect from the
+# next start. Separate try: a failure here must not undo the fix above.
+try {
+    $task = Get-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -ErrorAction Stop
+    if ("$($task.Principal.LogonType)" -ne 'S4U') {
+        $p = New-ScheduledTaskPrincipal -UserId $task.Principal.UserId -LogonType S4U -RunLevel Highest
+        Set-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -Principal $p -ErrorAction Stop | Out-Null
+    }
+} catch { }
 
 # ------------------------------------------------------------------ loop
 

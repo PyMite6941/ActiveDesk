@@ -128,7 +128,7 @@ public final class Updater {
                  .append(Proc.psq("\"" + cp.get(0) + "\"")).append(", 'dev.activedesk.ActiveDesk', 'run')\n");
             }
             String inner = java.util.Base64.getEncoder().encodeToString(s.toString().getBytes(StandardCharsets.UTF_16LE));
-            Proc.Result r = Proc.powershell(20, "Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " + inner + "'");
+            Proc.Result r = Proc.detachedHidden(inner);
             if (!r.ok()) {
                 Files.deleteIfExists(fresh);
                 System.out.println("Update failed: could not start the helper (" + r.out().trim() + ").");

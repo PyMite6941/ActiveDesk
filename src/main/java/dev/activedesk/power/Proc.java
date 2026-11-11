@@ -61,6 +61,20 @@ final class Proc {
         return powershell(timeoutSec, outer).code();
     }
 
+    /**
+     * Starts PowerShell running the -EncodedCommand payload `b64`, detached (it outlives this process, which
+     * matters because it waits for us to exit) and with its console hidden from the first frame. Start-Process
+     * -WindowStyle Hidden creates the window visible and hides it once PowerShell is up, so it flashes;
+     * Win32_Process.Create with ShowWindow=0 never shows it.
+     */
+    static Result detachedHidden(String b64) {
+        return powershell(30, "$si = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }\n"
+                + "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = "
+                + psq("powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " + b64)
+                + "; ProcessStartupInformation = $si }\n"
+                + "exit [int]$r.ReturnValue");
+    }
+
     /** Single-quoted PowerShell literal. */
     static String psq(String s) { return "'" + s.replace("'", "''") + "'"; }
 
