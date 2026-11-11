@@ -22,9 +22,10 @@ find each other over your **Tailscale** tailnet.
 |---|---|
 | **Chat** | Rooms, history sync between devices, de-duplication, anti-spoofing (a message must arrive from its author's own connection). |
 | **File transfer** | Offer → 64 KB chunks → SHA-256 verified. Backpressure keeps memory use flat. Safe file names, never overwrites. |
-| **Remote screen** | Live view with a real mouse, touch gestures and keyboard. A red on-screen banner shows whenever someone is watching or controlling. |
+| **Remote screen** | Live view with a real mouse, touch gestures and keyboard. Nothing is drawn on the controlled screen; every session is in the audit log and announced in chat. Viewing the computer your browser runs on blanks the browser window in the picture, so it never shows itself over and over. |
 | **Keep screen on** | `session` (default): the display stays on while someone is connected. `always`: kiosk/dashboard use. `off`. |
 | **Wake devices** | Wake-on-LAN, relayed through any awake ActiveDesk device on the same LAN. |
+| **Shell access** | Every device shows how to open a terminal on it over Tailscale: Tailscale SSH on Linux, the built-in SSH server on Windows and macOS. |
 | **Sign-in screen** | Windows lock-screen access through Remote Desktop over Tailscale (a `.rdp` file is offered). |
 | **Battery range** | Only charge between e.g. 40 % and 80 %, only while ActiveDesk runs (see below). |
 | **Scheduler** | Interval / daily / startup / manual triggers. Dependency workflows (DAG), retries with backoff, timeouts. Action types: `shell`, `http` (scraper), `backup` (zip), `email` (SMTP over TLS), `chat`. |
@@ -71,18 +72,39 @@ Overrides: `ACTIVEDESK_JAR` (use a local jar), `ACTIVEDESK_VERSION` (pin a relea
 
 ### Devices without a screen
 
-A Raspberry Pi or server with no display has nothing to remote-control. The **Screen** tab then shows a
-**Tailscale SSH** panel instead: a copyable `tailscale ssh user@host` command and steps for phone SSH apps.
-Tailscale SSH cannot run *on* Windows; use the built-in OpenSSH Server there.
+### Shell access (SSH)
+
+The **Screen** tab has a **Shell access (SSH)** panel on every device (open by default on a device with no
+screen, such as a headless Pi). It shows a copyable command and the one-time step for that OS:
+
+| Device | One-time step | Then |
+|---|---|---|
+| Linux / Pi | `sudo tailscale set --ssh` | `tailscale ssh user@device` - no passwords or keys |
+| Windows | Admin PowerShell: `Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0; Set-Service sshd -StartupType Automatic; Start-Service sshd` | `ssh user@100.x.y.z`, Windows password |
+| macOS | System Settings → General → Sharing → Remote Login | `ssh user@100.x.y.z`, Mac password |
+
+Windows and macOS can't be Tailscale SSH servers, so they use their own SSH server, reached over Tailscale.
+The panel says when an SSH server is already running on the device. ActiveDesk does not relay or run a shell itself.
 
 ### Uninstall
 
-ActiveDesk does not scatter files across your system. To remove it completely:
+One command removes everything ActiveDesk put on the computer:
 
-1. Stop the node: close the terminal, or `taskkill /F /IM java.exe` (Windows) / `pkill -f activedesk.jar` (Linux/macOS).
-2. Remove autostart (if you ran `activedesk install-service`).
-3. Delete the app folder: `%LOCALAPPDATA%\ActiveDesk` (Windows) or `~/.local/share/activedesk` + `~/.local/bin/activedesk` (Linux/macOS).
-4. Delete the data folder (optional — removes config, PIN, audit log, chat history): `%APPDATA%\ActiveDesk` (Windows) or `~/.activedesk` (Linux/macOS).
+```
+activedesk uninstall            # asks first; --yes to skip the question
+activedesk uninstall --purge    # also delete your data folder (config, PIN, chat history, logs)
+```
+
+It stops ActiveDesk, **puts the battery back to normal charging first**, removes the battery/power setup
+(one admin prompt, only if `power install` was ever run), the autostart entry, the Start-menu entry, the
+PATH entry, the `activedesk` command and the program folder. The data folder `~/.activedesk` is kept unless
+you add `--purge`. Received files in `Downloads/ActiveDesk` are never touched.
+
+If the program folder is already gone (deleted by hand), use the uninstall script. It fetches the release
+to a temp folder, checks its SHA-256 and runs the same uninstaller, so leftovers still get cleaned:
+
+- Linux / Pi / macOS: `curl -fsSL https://pymite6941.github.io/ActiveDesk/uninstall.sh | sh`
+- Windows PowerShell: `irm https://pymite6941.github.io/ActiveDesk/uninstall.ps1 | iex`
 
 Uninstalling ActiveDesk does not remove Tailscale or Java — those are separate installations.
 
@@ -168,6 +190,7 @@ No operating system lets an ordinary app pause charging, so each computer needs 
 activedesk battery install        # once per computer (UAC prompt on Windows, sudo on Linux)
 activedesk battery 40 80          # set and switch on   (or use the web app: Power → Battery)
 activedesk battery off | on | status | uninstall
+activedesk battery reset          # normal charging NOW, even if ActiveDesk is stopped or broken
 ```
 
 | OS | Supported hardware | How |
@@ -183,7 +206,14 @@ Where the firmware only has a "stop at N %" limit (ASUS, some Linux drivers), Ac
 - At min, it raises the limit back to max.
 - Some ASUS models accept a new limit but only apply it after the charger is reconnected. If the battery keeps gaining charge while it should be paused, `battery status` says so: unplug the charger and plug it back in.
 
-Thresholds that existed before are saved and restored. If ActiveDesk is killed, they are restored at the next start, or by `battery uninstall`.
+Getting back to normal charging never depends on a reboot:
+- Switching the range off, or stopping ActiveDesk, restores normal charging within about 2 seconds. A failed restore is retried, and if it still fails the status says so.
+- Every start of ActiveDesk runs one restore pass, which repairs a limit left behind by a crash or a killed process.
+- `activedesk battery reset` restores normal charging on the spot, whether or not ActiveDesk is running. If the guard task is missing or broken, it asks for admin permission once and restores directly.
+- `activedesk uninstall` and `battery uninstall` restore normal charging **before** they remove anything.
+- Linux: thresholds that existed before are saved and written back.
+
+Some ASUS models only apply a new limit after the charger is unplugged and plugged back in. That is also true for the restore, so the status suggests a replug for a few minutes afterwards.
 
 ## CLI and `nc`
 
@@ -198,6 +228,7 @@ activedesk lock                 end every web / remote-control session immediate
 activedesk pin                  new web PIN
 activedesk status               Tailscale + config summary
 activedesk selftest             built-in end-to-end test (what CI runs)
+activedesk uninstall [--purge]  remove ActiveDesk from this computer
 ```
 
 ## Tasks (`~/.activedesk/tasks.json`)
@@ -233,7 +264,6 @@ ActiveDesk can control your computer, so it is locked down in layers:
    - Strict CSP, `X-Frame-Options: DENY`, `nosniff`, `no-store`.
    - All network text is rendered as text, never HTML.
 5. **Visibility:**
-   - A red banner shows on the controlled screen.
    - Every login, control session, transfer, wake, battery and keep-awake change is written to `~/.activedesk/audit.log`.
    - Remote control also posts a chat notice.
 6. **Local privileges:** commands like `send`, `run-task`, `lock`, `awake` and `battery` need the owner-only `local.token`, so another user on the same machine can't drive your node.

@@ -161,7 +161,10 @@ async function screenLoop() {
     }
     const [w, q] = $('quality').value.split(':');
     try {
-      const res = await api('/api/screen?w=' + w + '&q=' + q);
+      // Where this browser window is on its screen. If it is showing the computer it runs on, the server
+      // blanks that area, otherwise the picture would contain itself over and over (infinity mirror).
+      const self = [window.screenX, window.screenY, window.outerWidth, window.outerHeight].map(Math.round).join(',');
+      const res = await api('/api/screen?w=' + w + '&q=' + q + '&self=' + self);
       const url = URL.createObjectURL(await res.blob());
       await new Promise((ok) => { $('screen').onload = ok; $('screen').onerror = ok; $('screen').src = url; });
       if (lastUrl) URL.revokeObjectURL(lastUrl);
@@ -176,20 +179,52 @@ async function screenLoop() {
   screenBusy = false;
   holdLocalAwake(false);
 }
-// No screen (headless Pi, server, locked-down session): offer a Tailscale SSH terminal instead.
+// No screen (headless Pi, server, locked-down session): the shell card below is the way in.
 function renderNoScreen() {
   const none = !!state && !state.screen;
   $('noScreen').classList.toggle('hidden', !none);
   $('screenArea').classList.toggle('hidden', none);
-  if (!none) return;
-  const host = state.selfName || state.selfIp || state.device;
+  if (none) $('noScreenWhy').textContent = 'Reason: ' + (state.screenReason || 'no display');
+  renderShell(none);
+}
+
+// Shell access for every device. Linux: Tailscale SSH (no passwords or keys). Windows and macOS can't be
+// Tailscale SSH servers, so they use the OS's own SSH server (OpenSSH Server / Remote Login) over Tailscale.
+let shellOpened = false;
+function renderShell(noScreen) {
+  if (!state) return;
+  const os = state.os || '';
+  const win = /win/i.test(os), mac = /mac|darwin/i.test(os);
   const user = state.user || 'you';
-  const win = /win/i.test(state.os || '');
-  $('noScreenWhy').textContent = 'Reason: ' + (state.screenReason || 'no display');
-  $('sshCmd').textContent = (win ? 'ssh ' : 'tailscale ssh ') + user + '@' + host;
-  $('sshHost').textContent = state.selfIp || host;
-  $('sshUser').textContent = user;
-  $('sshWinNote').classList.toggle('hidden', !win);
+  const ip = state.selfIp || state.selfName || state.device;
+  const cmd = win || mac ? 'ssh ' + user + '@' + ip : 'tailscale ssh ' + user + '@' + (state.selfName || ip);
+  $('sshCmd').textContent = cmd;
+  $('sshState').textContent = state.ssh ? '- an SSH server is running on this device' : '';
+  const steps = win ? [
+    ['Once, on this device, in PowerShell opened with "Run as administrator": ',
+      'Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0; Set-Service sshd -StartupType Automatic; Start-Service sshd'],
+    ['From another computer with Tailscale: paste the command above. Sign in with your Windows password (for a Microsoft account, its password, not the PIN).'],
+    ['From a phone: any free SSH app (e.g. Termius) with host ', ip, ' and user ', user, '.'],
+  ] : mac ? [
+    ['Once, on this Mac: System Settings \u2192 General \u2192 Sharing \u2192 turn on Remote Login.'],
+    ['From another computer with Tailscale: paste the command above and sign in with this Mac\u2019s password.'],
+    ['From a phone: any free SSH app (e.g. Termius) with host ', ip, ' and user ', user, '.'],
+  ] : [
+    ['Once, on this device: ', 'sudo tailscale set --ssh'],
+    ['From another computer with Tailscale: paste the command above. No password or keys: Tailscale checks it is you.'],
+    ['From a phone: any free SSH app (e.g. Termius) with host ', ip, ' and user ', user, '.'],
+  ];
+  const ol = $('sshSteps');
+  ol.replaceChildren(...steps.map((parts) => {
+    const li = document.createElement('li');
+    // odd-indexed parts are commands / values (shown as code), the rest is plain text; never HTML
+    parts.forEach((p, i) => {
+      if (i % 2) { const c = document.createElement('code'); c.textContent = p; li.append(c); }
+      else li.append(document.createTextNode(p));
+    });
+    return li;
+  }));
+  if (noScreen && !shellOpened) { $('shellCard').open = true; shellOpened = true; }
 }
 $('sshCopy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('sshCmd').textContent); toast('Copied'); }

@@ -100,3 +100,10 @@ progress { width: 100%; height: 8px; margin-top: 10px; border-radius: 4px; overf
   .screen-wrap { border-radius: 20px; }
   .item { min-height: 64px; padding: 14px 16px; }
 }
+/* shell access (SSH) card */
+.shell-card { margin-top: 16px; }
+.shell-card summary { cursor: pointer; }
+.shell-card[open] summary { margin-bottom: 8px; }
+.cmd { flex: 1; min-width: 0; padding: 8px 10px; overflow-wrap: anywhere; font-size: 13px; }
+.steps { padding-left: 20px; line-height: 1.6; }
+.steps code { overflow-wrap: anywhere; }

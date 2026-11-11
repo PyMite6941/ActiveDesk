@@ -31,11 +31,13 @@ public final class Config {
     }
 
     public static Config load() throws IOException {
+        return loadFrom(defaultHome());
+    }
+
+    /** The data folder `load()` uses, without creating it. */
+    public static Path defaultHome() {
         String env = System.getenv("ACTIVEDESK_HOME");
-        Path home = env != null && !env.isBlank()
-                ? Path.of(env)
-                : Path.of(System.getProperty("user.home"), ".activedesk");
-        return loadFrom(home);
+        return env != null && !env.isBlank() ? Path.of(env) : Path.of(System.getProperty("user.home"), ".activedesk");
     }
 
     /** Load (creating defaults) from an explicit folder. Used by the self-test to run two nodes in one JVM. */
@@ -64,7 +66,6 @@ public final class Config {
         dirty |= def("transfer.autoAccept", "true");
         dirty |= def("control.enabled", "true");
         dirty |= def("control.viewOnly", "false");
-        dirty |= def("control.indicator", "true");
         dirty |= def("tailscale.path", "");
         dirty |= def("store.jdbc.url", "");
         dirty |= def("store.jdbc.user", "");

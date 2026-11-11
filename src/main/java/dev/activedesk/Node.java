@@ -5,7 +5,6 @@ import dev.activedesk.net.Connection;
 import dev.activedesk.net.Frame;
 import dev.activedesk.net.Hub;
 import dev.activedesk.net.TextConsole;
-import dev.activedesk.remote.ControlIndicator;
 import dev.activedesk.remote.KeepAwake;
 import dev.activedesk.power.BatteryService;
 import dev.activedesk.power.PowerService;
@@ -46,7 +45,6 @@ public final class Node implements Hub.Listener, AutoCloseable {
     private final ChatService chat;
     private final FileTransferService transfers;
     private final ScreenService screen;
-    private final ControlIndicator indicator;
     private final KeepAwake keepAwake;
     private final BatteryService battery;
     private final PowerService power;
@@ -70,7 +68,6 @@ public final class Node implements Hub.Listener, AutoCloseable {
         this.policy = new AccessPolicy(tailscale, config);
         this.screen = new ScreenService(config.getBool("control.enabled"));
         this.screen.setTypeMode(config.get("control.typeMode"));
-        this.indicator = new ControlIndicator(config.getBool("control.indicator") && screen.available());
         this.keepAwake = new KeepAwake(screen, KeepAwake.parse(config.get("power.keepAwake")));
         this.power = new PowerService(config);
         this.battery = new BatteryService(config, power);
@@ -385,7 +382,6 @@ public final class Node implements Hub.Listener, AutoCloseable {
     public ChatService chat() { return chat; }
     public FileTransferService transfers() { return transfers; }
     public ScreenService screen() { return screen; }
-    public ControlIndicator indicator() { return indicator; }
     public KeepAwake keepAwake() { return keepAwake; }
     public BatteryService battery() { return battery; }
     public PowerService power() { return power; }

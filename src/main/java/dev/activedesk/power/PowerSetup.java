@@ -1,7 +1,6 @@
 package dev.activedesk.power;
 
 import dev.activedesk.Config;
-import dev.activedesk.util.Json;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,26 +35,45 @@ public final class PowerSetup {
     }
 
     public static int uninstall(Config config, boolean terminal, Consumer<String> out) throws IOException, InterruptedException {
-        config.update("battery.enabled", "false");
         if (Proc.windows()) {
-            out.accept("Switching the charge range off and waiting for the guard to restore normal charging...");
-            for (int i = 0; i < 45; i++) {
-                try {
-                    if (!Json.bool(Json.obj(Files.readString(BatteryService.statusFile())), "running", false)) break;
-                } catch (IOException | RuntimeException e) { break; }
-                Thread.sleep(1000);
-            }
-            int rc = Proc.elevate("try {"
-                    + " Unregister-ScheduledTask -TaskName 'Battery' -TaskPath '\\ActiveDesk\\' -Confirm:$false -ErrorAction SilentlyContinue;"
-                    + " Remove-Item -LiteralPath (Join-Path $env:ProgramFiles 'ActiveDesk\\battery-guard.ps1') -Force -ErrorAction SilentlyContinue;"
-                    + " exit 0 } catch { exit 1 }", 300);
-            out.accept(rc == 0 ? "Removed the battery guard (the Power saver plan stays; delete it in Control Panel if you like)." : "Uninstall failed or was cancelled (exit " + rc + ").");
+            // Normal charging FIRST, while the guard that can restore it still exists. If its task can't do it
+            // (missing, broken), the restore rides along in the same elevated script: still one admin prompt.
+            config.update("battery.enabled", "false");
+            boolean restored = BatteryService.restoreViaTask(out);
+            out.accept("Windows will ask for admin permission once to remove the battery guard"
+                    + (restored ? "." : " (and restore normal charging)."));
+            int rc = Proc.elevate(windowsRemoveScript(restored), 300);
+            out.accept(switch (rc) {
+                case 0 -> "Removed the battery guard and its task (the Power saver plan stays; delete it in Control Panel if you like).";
+                case 2 -> "Cancelled at the admin prompt. Nothing was removed.";
+                case 4 -> "Removed the battery guard, but could NOT restore normal charging. Restart the laptop to clear the limit.";
+                default -> "Removing the battery guard failed (exit " + rc + ").";
+            });
             return rc;
         }
+        // Linux: write the saved thresholds back while the udev rule still lets us.
+        BatteryService.reset(config, out);
         String cmd = Proc.mac() ? "rm -f " + SUDOERS : "rm -f " + UDEV_RULE + " && udevadm control --reload";
         int rc = asRoot(cmd, null, terminal);
         out.accept(rc == 0 ? "Removed the one-time setup." : "Uninstall failed or was cancelled (exit " + rc + ").");
         return rc;
+    }
+
+    /** Elevated: restore normal charging unless the task already did, then remove task + folders. Exit 0 ok, 4 restore failed, 1 leftovers. */
+    static String windowsRemoveScript(boolean restored) {
+        return (restored ? "$restoreRc = 0\n" : BatteryService.RESTORE_BODY)
+                    + "$removeRc = 1\n"
+                    + "try {\n"
+                    + "  $ErrorActionPreference = 'Continue'\n"
+                    + "  Get-ScheduledTask -TaskPath '\\ActiveDesk\\' -ErrorAction SilentlyContinue | Stop-ScheduledTask -ErrorAction SilentlyContinue\n"
+                    + "  Unregister-ScheduledTask -TaskName 'Battery' -TaskPath '\\ActiveDesk\\' -Confirm:$false -ErrorAction SilentlyContinue\n"
+                    + "  Remove-Item -LiteralPath (Join-Path $env:ProgramFiles 'ActiveDesk') -Recurse -Force -ErrorAction SilentlyContinue\n"
+                    + "  Remove-Item -LiteralPath (Join-Path $env:ProgramData 'ActiveDesk') -Recurse -Force -ErrorAction SilentlyContinue\n"
+                    + "  $left = (Get-ScheduledTask -TaskName 'Battery' -TaskPath '\\ActiveDesk\\' -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'ActiveDesk'))\n"
+                    + "  if (-not $left) { $removeRc = 0 }\n"
+                    + "} catch { }\n"
+                    + "if ($restoreRc -eq 1) { exit 4 }\n"
+                    + "exit $removeRc\n";
     }
 
     // ------------------------------------------------------------------ Windows

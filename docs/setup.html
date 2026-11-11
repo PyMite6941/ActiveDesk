@@ -47,7 +47,7 @@
     </ol>
     <p>Optional settings (set them before running the installer):</p>
     <ul>
-      <li><code>ACTIVEDESK_VERSION</code>: install a specific release, e.g. <code>v1.0.1</code>.</li>
+      <li><code>ACTIVEDESK_VERSION</code>: install a specific release, e.g. <code>v1.0.2</code>.</li>
       <li><code>ACTIVEDESK_JAR</code>: use a jar you already have instead of downloading.</li>
       <li><code>ACTIVEDESK_YES=1</code>: accept every default, no questions.</li>
     </ul>
@@ -102,24 +102,25 @@
 
   <section>
     <h2>4. Uninstall</h2>
-    <p>ActiveDesk does not scatter files across your system. To remove it completely:</p>
-    <ol>
-      <li><b>Stop the node:</b> close the terminal, or <code>taskkill /F /IM java.exe</code> (Windows) / <code>pkill -f activedesk.jar</code> (Linux/macOS).</li>
-      <li><b>Remove autostart (if you set it up):</b> disable the Startup entry / LaunchAgent / XDG autostart that <code>activedesk install-service</code> created.</li>
-      <li><b>Delete the app folder:</b>
-        <ul>
-          <li>Windows: delete <code>%LOCALAPPDATA%\\ActiveDesk</code></li>
-          <li>macOS/Linux: delete <code>~/.local/share/activedesk</code> and <code>~/.local/bin/activedesk</code></li>
-        </ul>
-      </li>
-      <li><b>Delete the data folder (optional):</b> removes your config, PIN, audit log, and chat history.
-        <ul>
-          <li>Windows: <code>%APPDATA%\\ActiveDesk</code></li>
-          <li>macOS/Linux: <code>~/.activedesk</code></li>
-        </ul>
-      </li>
-      <li><b>Uninstall Tailscale (optional):</b> remove the Tailscale app if you no longer need it.</li>
-    </ol>
+    <p>One command removes everything ActiveDesk put on the computer:</p>
+    <div class="code-card" style="margin-top: 14px;">
+      <div class="code-top">Any computer</div>
+      <pre><span class="prompt">$</span> activedesk uninstall</pre>
+    </div>
+    <ul>
+      <li>It stops ActiveDesk and <b>puts the battery back to normal charging first</b>.</li>
+      <li>It removes the battery/power setup (one admin prompt, only if it was installed), the autostart entry, the Start-menu entry, the PATH entry, the <code>activedesk</code> command and the program folder.</li>
+      <li><code>--yes</code> skips the question. <code>--purge</code> also deletes your data folder <code>~/.activedesk</code> (config, PIN, chat history, logs). Received files are never touched.</li>
+    </ul>
+    <p>If the program folder is already gone, the uninstall script fetches the release, checks it and runs the same uninstaller:</p>
+    <div class="code-card" style="margin-top: 14px;">
+      <div class="code-top">Linux / Pi / macOS</div>
+      <pre><span class="prompt">$</span> curl -fsSL https://pymite6941.github.io/ActiveDesk/uninstall.sh | sh</pre>
+    </div>
+    <div class="code-card" style="margin-top: 14px;">
+      <div class="code-top">Windows PowerShell</div>
+      <pre><span class="prompt">&gt;</span> irm https://pymite6941.github.io/ActiveDesk/uninstall.ps1 | iex</pre>
+    </div>
     <div class="warning">Uninstalling ActiveDesk does not remove Tailscale or Java — those are separate installations.</div>
   </section>
 
@@ -142,6 +143,7 @@
         <tr><td><code>activedesk pin</code></td><td>Set a new web PIN.</td></tr>
         <tr><td><code>activedesk status</code></td><td>Tailscale + config summary.</td></tr>
         <tr><td><code>activedesk selftest</code></td><td>Run the built-in end-to-end test (what CI runs).</td></tr>
+        <tr><td><code>activedesk uninstall [--yes] [--purge]</code></td><td>Remove ActiveDesk from this computer, normal charging restored first (<code>--purge</code>: also your data).</td></tr>
         <tr><td><code>activedesk power install</code></td><td>One-time admin/root setup for power mode, brightness, charge limits.</td></tr>
         <tr><td><code>activedesk power uninstall</code></td><td>Remove the power/battery privileged setup.</td></tr>
         <tr><td><code>activedesk power status</code></td><td>Show current power mode, brightness, battery state.</td></tr>
@@ -150,6 +152,7 @@
         <tr><td><code>activedesk power saver off|&lt;below%&gt; [dim%]</code></td><td>Auto power saver when on battery below a percent.</td></tr>
         <tr><td><code>activedesk battery &lt;min&gt; &lt;max&gt;</code></td><td>Only charge between min% and max% (e.g. 40 80).</td></tr>
         <tr><td><code>activedesk battery on|off|status|uninstall</code></td><td>Turn charge limiting on/off, show status, or uninstall.</td></tr>
+        <tr><td><code>activedesk battery reset</code></td><td>Normal charging right now, even if ActiveDesk is stopped or its setup is broken.</td></tr>
       </tbody>
     </table>
   </section>

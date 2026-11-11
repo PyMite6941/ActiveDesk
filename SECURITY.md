@@ -23,7 +23,7 @@ Please report vulnerabilities privately through GitHub's **"Report a vulnerabili
 | Tampered installer download | `install.sh` / `install.ps1` verify the jar's SHA-256 against the release's `SHA256SUMS.txt` and stop on a mismatch. |
 | Power settings (macOS) | `power install` adds a sudoers rule for `pmset` only, nothing else. |
 | Keep-awake input nudge | Sends only a Shift tap and a 1-pixel pointer move, never a click or a typed character. |
-| Unnoticed remote control | Red on-screen banner, chat notice and `audit.log` entry. |
+| Unnoticed remote control | Chat notice to every device and an `audit.log` entry for each session (nothing is drawn on the controlled screen, by design). `activedesk lock` ends all sessions. |
 
 ## Known limits
 

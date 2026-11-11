@@ -52,6 +52,8 @@ public final class BatteryService {
     private volatile boolean holding;
     private boolean firstLinuxTick = true;
     private long lastLaunch;
+    /** Windows: run the guard once with the range off, which makes it put the firmware back to normal charging. */
+    private volatile boolean restorePass = true;
 
     public BatteryService(Config config, PowerService power) {
         this.config = config;
@@ -87,7 +89,9 @@ public final class BatteryService {
         if (enabled && !supported()) throw new IllegalArgumentException("this device's battery has no charge control ActiveDesk can drive");
         config.update("battery.min", Integer.toString(min));
         config.update("battery.max", Integer.toString(max));
+        boolean wasOn = enabled();
         config.update("battery.enabled", Boolean.toString(enabled));
+        if (wasOn && !enabled) restorePass = true;
         firstLinuxTick = true;
         tick();
     }
@@ -187,8 +191,23 @@ public final class BatteryService {
             taskInstalled = Proc.run(20, "schtasks", "/query", "/tn", TASK).ok();
             if (!taskInstalled) { message = "needs the one-time setup (Set up button, or 'activedesk power install'); asks for admin once"; return; }
         }
-        if (!enabled()) { message = "off - normal charging"; return; }
         Map<String, Object> st = guardStatus();
+        if (!enabled()) {
+            // Repair pass at every start and every switch-off: a limit left behind by a crash, a killed
+            // guard or a failed restore would otherwise keep the laptop from charging until a reboot.
+            boolean guardUp = Json.bool(st, "running", false) && System.currentTimeMillis() - Json.num(st, "updated", 0) < 75_000;
+            if (restorePass && !guardUp) {
+                restorePass = false;
+                Proc.Result r = Proc.run(20, "schtasks", "/run", "/tn", TASK);
+                if (!r.ok()) Log.info("battery: could not run the restore pass: " + r.out().trim());
+            }
+            if (guardUp) message = "switching off - restoring normal charging...";
+            else if (st.containsKey("restored") && !Json.bool(st, "restored", true)) message = Json.str(st, "message", "could not restore normal charging");
+            else if (System.currentTimeMillis() - Json.num(st, "restoredAt", 0) < 600_000)
+                message = "off - normal charging restored (if it still doesn't charge, unplug the charger and plug it back in: some laptops only apply the change then)";
+            else message = "off - normal charging";
+            return;
+        }
         boolean fresh = System.currentTimeMillis() - Json.num(st, "updated", 0) < 75_000;
         if (Json.bool(st, "running", false) && fresh) {
             message = Json.str(st, "message", "");
@@ -204,6 +223,111 @@ public final class BatteryService {
             message = Json.str(st, "message", message);
         }
     }
+
+    /**
+     * `activedesk battery reset`: switch the range off and put the battery back to normal charging NOW,
+     * whether or not ActiveDesk is running. Windows: runs the guard task (no prompt); if that is missing
+     * or fails, one admin prompt runs the restore directly. Linux: writes back the saved thresholds.
+     */
+    public static int reset(Config config, java.util.function.Consumer<String> out) throws IOException, InterruptedException {
+        config.update("battery.enabled", "false");
+        if (Proc.mac()) { out.accept("macOS: ActiveDesk never changes charging here. Nothing to reset."); return 0; }
+        if (Proc.linux()) {
+            Sysfs sf = Sysfs.find();
+            Path orig = config.home().resolve("battery-original.properties");
+            if (sf == null || !Files.exists(orig)) { out.accept("Normal charging: ActiveDesk has no changed thresholds to undo."); return 0; }
+            BatteryService b = new BatteryService(config, new PowerService(config));
+            b.sysfs = sf;
+            b.restoreLinux();
+            if (Files.exists(orig)) {
+                out.accept("Could not write the battery thresholds (the one-time setup is missing). Run: sudo activedesk battery reset  - or restart the computer.");
+                return 1;
+            }
+            out.accept("Normal charging restored (original thresholds written back).");
+            return 0;
+        }
+        if (restoreViaTask(out)) return 0;
+        int rc = Proc.elevate(RESTORE_PS, 120);
+        out.accept(rc == 0 ? "Normal charging restored. If it still doesn't charge, unplug the charger and plug it back in (some laptops only apply the change then)."
+                : rc == 3 ? "This laptop has no charge limit ActiveDesk controls. Nothing to reset."
+                : rc == 2 ? "Cancelled at the admin prompt. Nothing was changed. (Restarting the laptop also resets the ASUS limit.)"
+                : "Could not restore (exit " + rc + "). Restarting the laptop also resets the ASUS limit.");
+        return rc == 3 ? 0 : rc;
+    }
+
+    /**
+     * Windows, no prompt: runs the installed guard task with the range off (which always restores normal
+     * charging) and waits for its confirmation. False when the task or its script is missing, or it did
+     * not confirm within ~20 s: the caller then restores with one admin prompt instead.
+     */
+    static boolean restoreViaTask(java.util.function.Consumer<String> out) throws InterruptedException {
+        String pf = System.getenv("ProgramFiles");
+        if (pf == null || !Files.exists(Path.of(pf, "ActiveDesk", "battery-guard.ps1"))
+                || !Proc.run(20, "schtasks", "/query", "/tn", TASK).ok()) {
+            out.accept("The battery task isn't (fully) installed, so Windows asks for admin permission once to restore normal charging.");
+            return false;
+        }
+        out.accept("Restoring normal charging...");
+        long t0 = System.currentTimeMillis();
+        Proc.Result r = Proc.run(20, "schtasks", "/run", "/tn", TASK);
+        if (r.ok()) {
+            for (int i = 0; i < 40; i++) {
+                Thread.sleep(500);
+                Map<String, Object> st;
+                try { st = Json.obj(Files.readString(statusFile(), StandardCharsets.UTF_8)); } catch (IOException | RuntimeException e) { continue; }
+                if (Json.num(st, "updated", 0) < t0 || Json.bool(st, "running", false)) continue;
+                if (!Json.bool(st, "supported", true)) { out.accept("This laptop has no charge limit ActiveDesk controls. Nothing to reset."); return true; }
+                if (Json.bool(st, "restored", false)) {
+                    out.accept("Normal charging restored. If it still doesn't charge, unplug the charger and plug it back in (some laptops only apply the change then).");
+                    return true;
+                }
+                break;
+            }
+        }
+        out.accept("The battery task didn't confirm, so Windows asks for admin permission once to restore normal charging.");
+        return false;
+    }
+
+    /**
+     * Elevated restore, same effect as the guard's: ASUS limit 100 %, Dell back to the saved setting.
+     * Sets $restoreRc: 0 restored, 1 failed, 3 nothing to control. Never exits, so it can be combined.
+     */
+    static final String RESTORE_BODY = """
+            $restoreRc = 1
+            try {
+              $ErrorActionPreference = 'Stop'
+              $adDir = Join-Path $env:ProgramData 'ActiveDesk'
+              $atk = Get-CimInstance -Namespace root/wmi -ClassName AsusAtkWmi_WMNB -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($atk) {
+                for ($i = 0; $i -lt 5; $i++) {
+                  try { Invoke-CimMethod -InputObject $atk -MethodName DEVS -Arguments @{ Device_ID = [uint32]0x00120057; Control_status = [uint32]100 } | Out-Null; break }
+                  catch { if ($i -eq 4) { throw }; Start-Sleep 2 }
+                }
+                $restoreRc = 0
+              } else {
+                $cctk = @("$env:ProgramFiles\\Dell\\Command Configure\\X86_64\\cctk.exe", "${env:ProgramFiles(x86)}\\Dell\\Command Configure\\X86_64\\cctk.exe") |
+                        Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+                if (-not $cctk) { $restoreRc = 3 }
+                else {
+                  $f = Join-Path $adDir 'dell-original.txt'
+                  $o = if (Test-Path -LiteralPath $f) { ([IO.File]::ReadAllText($f)).Trim() } else { 'Adaptive' }
+                  if ($o -notmatch '^(Standard|Express|Adaptive|PrimAcUse|Custom:\\d{1,3}-\\d{1,3})$') { $o = 'Adaptive' }
+                  & $cctk "--PrimaryBattChargeCfg=$o" | Out-Null
+                  if ($LASTEXITCODE -ne 0) { throw "cctk failed ($LASTEXITCODE)" }
+                  Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
+                  $restoreRc = 0
+                }
+              }
+              if ($restoreRc -eq 0) {
+                New-Item -ItemType Directory -Force -Path $adDir | Out-Null
+                $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                [IO.File]::WriteAllText((Join-Path $adDir 'battery-status.json'), (@{ running = $false; supported = $true; restored = $true; restoredAt = $now; updated = $now; message = 'off - normal charging restored' } | ConvertTo-Json -Compress))
+              }
+            } catch { $restoreRc = 1 }
+            """;
+
+    /** One-shot elevated restore for `battery reset`. Exit 3 = nothing to control. */
+    static final String RESTORE_PS = RESTORE_BODY + "exit $restoreRc\n";
 
     // ------------------------------------------------------------------ Linux
 

@@ -50,7 +50,21 @@ function Test-NodeAlive {
     $id = ([IO.File]::ReadAllText($PidFile)).Trim()
     if ($id -notmatch '^\d{1,10}$') { return $false }
     $p = Get-Process -Id ([int]$id) -ErrorAction SilentlyContinue
-    return ($null -ne $p -and $p.ProcessName -match '^(javaw?|ActiveDesk)$')
+    if ($null -eq $p -or $p.ProcessName -notmatch '^(javaw?|ActiveDesk)$') { return $false }
+    # A PID can be reused after a crash. The node writes node.pid after it starts, so a process that
+    # started later than the file was written is a different program: treat the node as gone.
+    try { if ($p.StartTime -gt (Get-Item -LiteralPath $PidFile).LastWriteTime.AddSeconds(5)) { return $false } } catch { }
+    return $true
+}
+
+# Wait up to $seconds, but return early (false) as soon as the range is switched off or the node is gone,
+# so 'activedesk battery off' and quitting ActiveDesk restore normal charging within ~2 s.
+function Wait-WhileWanted([int]$seconds) {
+    for ($i = 0; $i -lt $seconds; $i += 2) {
+        Start-Sleep -Seconds 2
+        if (-not (Read-Settings).enabled -or -not (Test-NodeAlive)) { return $false }
+    }
+    return $true
 }
 
 # ------------------------------------------------------------------ vendor backends
@@ -71,8 +85,16 @@ if ($null -eq $Backend) {
               "${env:ProgramFiles(x86)}\Dell\Command Configure\X86_64\cctk.exe") |
             Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
     if ($cctk) {
-        $before = (& $cctk '--PrimaryBattChargeCfg' 2>$null | Out-String)
-        $script:DellOriginal = if ($before -match 'PrimaryBattChargeCfg=(Standard|Express|Adaptive|PrimAcUse|Custom:\d{1,3}-\d{1,3})') { $Matches[1] } else { 'Adaptive' }
+        # Remember the user's own setting ONCE, on disk: a guard started after a crash would otherwise
+        # read back our custom range and "restore" that. Deleted after a successful restore.
+        $origFile = Join-Path $StateDir 'dell-original.txt'
+        if (Test-Path -LiteralPath $origFile) { $script:DellOriginal = ([IO.File]::ReadAllText($origFile)).Trim() }
+        else {
+            $before = (& $cctk '--PrimaryBattChargeCfg' 2>$null | Out-String)
+            $script:DellOriginal = if ($before -match 'PrimaryBattChargeCfg=(Standard|Express|Adaptive|PrimAcUse|Custom:\d{1,3}-\d{1,3})') { $Matches[1] } else { 'Adaptive' }
+            [IO.File]::WriteAllText($origFile, $script:DellOriginal)
+        }
+        if ($script:DellOriginal -notmatch '^(Standard|Express|Adaptive|PrimAcUse|Custom:\d{1,3}-\d{1,3})$') { $script:DellOriginal = 'Adaptive' }
         $Backend = @{
             name = 'Dell Command | Configure'; native = $true
             # Dell limits: start 50-95, stop 55-100, at least 5 apart
@@ -81,7 +103,10 @@ if ($null -eq $Backend) {
                 $out = & $cctk "--PrimaryBattChargeCfg=Custom:$lo-$hi" 2>&1 | Out-String
                 if ($LASTEXITCODE -ne 0) { throw "cctk failed ($LASTEXITCODE): $($out.Trim()) - a BIOS admin password blocks changes" }
                 return "$lo-$hi" }
-            restore = { & $cctk "--PrimaryBattChargeCfg=$script:DellOriginal" 2>&1 | Out-Null }
+            restore = {
+                $out = & $cctk "--PrimaryBattChargeCfg=$script:DellOriginal" 2>&1 | Out-String
+                if ($LASTEXITCODE -ne 0) { throw "cctk failed ($LASTEXITCODE): $($out.Trim())" }
+                Remove-Item -LiteralPath $origFile -Force -ErrorAction SilentlyContinue }
         }
     }
 }
@@ -106,13 +131,13 @@ try {
         if (-not $cfg.enabled -or -not (Test-NodeAlive)) { break }
 
         $bat = Get-CimInstance Win32_Battery | Select-Object -First 1
-        if ($null -eq $bat) { Write-Status @{ running = $true; supported = $true; backend = $Backend.name; message = 'no battery found' }; Start-Sleep 30; continue }
+        if ($null -eq $bat) { Write-Status @{ running = $true; supported = $true; backend = $Backend.name; message = 'no battery found' }; if (-not (Wait-WhileWanted 30)) { break }; continue }
         $pct = [int]$bat.EstimatedChargeRemaining
         $st = Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue | Select-Object -First 1
 
         if ($Backend.native) {
             $key = "$($cfg.min)-$($cfg.max)"
-            if ($key -ne $applied) { $eff = & $Backend.apply $cfg.min $cfg.max; $applied = $key }
+            if ($key -ne $applied) { $applied = $key; $eff = & $Backend.apply $cfg.min $cfg.max }
             $holding = $false   # the firmware decides; nothing to report beyond the range
             $msg = "firmware keeps the battery between $eff%"
         } else {
@@ -120,7 +145,7 @@ try {
             elseif ($pct -le $cfg.min) { $holding = $false }
             elseif ($first) { $holding = $false }   # starting in between: top up to max, then hold
             $want = if ($holding) { $cfg.min } else { $cfg.max }
-            if ("$want" -ne $applied) { & $Backend.apply $want; $applied = "$want" }
+            if ("$want" -ne $applied) { $applied = "$want"; & $Backend.apply $want }   # mark first: a failed apply still gets restored
             # Trust the battery, not the firmware's "OK": some models (several ASUS Vivobooks) accept the
             # limit but only apply it after the charger is reconnected. Say so instead of claiming a pause.
             # Judge by stored energy, not the Charging flag: Windows reports Charging=True even while the
@@ -139,7 +164,7 @@ try {
             running = $true; supported = $true; backend = $Backend.name; percent = $pct; min = $cfg.min; max = $cfg.max
             holding = $holding; charging = [bool]($st -and $st.Charging); pluggedIn = [bool]($st -and $st.PowerOnline); message = $msg
         }
-        Start-Sleep -Seconds 30
+        if (-not (Wait-WhileWanted 30)) { break }
     }
 }
 catch {
@@ -147,7 +172,24 @@ catch {
     Write-Status @{ running = $false; supported = $true; backend = $Backend.name; message = "guard error: $($_.Exception.Message)" }
 }
 finally {
-    try { & $Backend.restore } catch { }
-    if (-not $failed) { Write-Status @{ running = $false; supported = $true; backend = $Backend.name; message = 'stopped - normal charging restored' } }
+    # Always put the firmware back to normal charging, even if this run never changed anything (a run
+    # with the range off is exactly how ActiveDesk repairs a limit left behind by a crash). Retried,
+    # because a single failed WMI call must never leave the laptop stuck at a low limit.
+    $restoreError = $null
+    for ($try = 1; $try -le 5; $try++) {
+        try { & $Backend.restore; $restoreError = $null; break }
+        catch { $restoreError = $_.Exception.Message; Start-Sleep -Seconds 2 }
+    }
+    if ($restoreError) {
+        Write-Status @{ running = $false; supported = $true; backend = $Backend.name; restored = $false
+            message = "could not restore normal charging ($restoreError). Run 'activedesk battery reset', or restart the laptop." }
+    } elseif (-not $failed) {
+        Write-Status @{ running = $false; supported = $true; backend = $Backend.name; restored = $true; restoredAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+            message = 'off - normal charging restored' }
+    } else {
+        $prev = try { [IO.File]::ReadAllText($StatusFile) | ConvertFrom-Json } catch { $null }
+        Write-Status @{ running = $false; supported = $true; backend = $Backend.name; restored = $true; restoredAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+            message = "$(if ($prev) { $prev.message } else { 'guard error' }) (normal charging restored)" }
+    }
     $mutex.ReleaseMutex()
 }

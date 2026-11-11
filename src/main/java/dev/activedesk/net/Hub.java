@@ -52,7 +52,7 @@ public final class Hub implements Runnable {
     private static final long CONNECT_TIMEOUT_MS = 10_000;
     private static final long IDLE_TIMEOUT_MS = 90_000;
     private static final long PING_EVERY_MS = 25_000;
-    public static final String VERSION = "1.0.1";
+    public static final String VERSION = "1.0.2";
 
     private final String nodeId;
     private final AccessPolicy policy;

@@ -106,7 +106,6 @@ public final class WebServer {
     public int revokeAll() {
         int n = sessions.size();
         sessions.clear();
-        node.indicator().hideNow();
         node.audit("all web sessions revoked (" + n + ")");
         return n;
     }
@@ -117,7 +116,6 @@ public final class WebServer {
         long now = System.currentTimeMillis();
         sessions.values().removeIf(s -> now - s.lastUsed()[0] > IDLE_MS || now - s.created() > ABSOLUTE_MS);
         policyCache.values().removeIf(c -> now - c.at() > 30_000);
-        node.indicator().tick();
     }
 
     // ------------------------------------------------------------------ request pipeline
@@ -430,7 +428,7 @@ public final class WebServer {
         }
         boolean selfRdp = System.getProperty("os.name", "").toLowerCase().contains("win") && rdpListening();
         return Json.o("device", node.config().deviceName(), "nodeId", node.config().nodeId(), "offline", offline,
-                "rdp", selfRdp, "selfIp", st.self() == null ? "" : String.valueOf(st.self().ipv4()),
+                "rdp", selfRdp, "ssh", sshListening(), "selfIp", st.self() == null ? "" : String.valueOf(st.self().ipv4()),
                 "os", System.getProperty("os.name"), "version", dev.activedesk.net.Hub.VERSION,
                 "tailscale", st.backendState(),
                 "user", System.getProperty("user.name", ""), "selfName", st.self() == null ? "" : st.self().displayName(),
@@ -451,9 +449,8 @@ public final class WebServer {
         int w = (int) Math.max(320, Math.min(2560, parseLong(q.get("w"), 1280)));
         float quality = (float) Math.max(0.1, Math.min(0.95, parseDouble(q.get("q"), 0.6)));
         announceControl(s, false);
-        node.indicator().touch(shortWho(s.who()), false);
         node.keepAwake().activity();
-        byte[] jpg = node.screen().captureJpeg(w, quality);
+        byte[] jpg = node.screen().captureJpeg(w, quality, sameComputer(s.ip()) ? selfWindow(q.get("self")) : null);
         ex.getResponseHeaders().set("Content-Type", "image/jpeg");
         ex.sendResponseHeaders(200, jpg.length);
         try (OutputStream os = ex.getResponseBody()) {
@@ -461,12 +458,30 @@ public final class WebServer {
         }
     }
 
+    /** The viewer's browser runs on this very computer (so its window is part of the capture). */
+    private boolean sameComputer(String ip) {
+        try {
+            if (InetAddress.getByName(ip).isLoopbackAddress()) return true;
+        } catch (IOException e) {
+            return false;
+        }
+        Tailscale.Peer self = node.tailscale().status().self();
+        return self != null && ip.equals(self.ipv4());
+    }
+
+    /** "x,y,w,h" of the viewer's browser window in screen coordinates, or null. */
+    private static java.awt.Rectangle selfWindow(String v) {
+        if (v == null || !v.matches("-?\\d{1,6},-?\\d{1,6},\\d{1,6},\\d{1,6}")) return null;
+        String[] p = v.split(",");
+        java.awt.Rectangle r = new java.awt.Rectangle(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]), Integer.parseInt(p[3]));
+        return r.width >= 50 && r.height >= 50 ? r : null;
+    }
+
     private void input(HttpExchange ex, Session s) throws IOException {
         if (!node.screen().available()) throw new HttpError(503, node.screen().unavailableReason());
         if (node.config().getBool("control.viewOnly")) throw new HttpError(403, "this device is view-only");
         Map<String, Object> b = readJson(ex);
         announceControl(s, true);
-        node.indicator().touch(shortWho(s.who()), true);
         node.keepAwake().activity();
         try {
             node.screen().input(b);
@@ -482,6 +497,24 @@ public final class WebServer {
             node.audit("REMOTE CONTROL started by " + s.who() + " " + s.ip());
             node.chat().system("general", "Remote control of this device started by " + shortWho(s.who()));
         }
+    }
+
+    private volatile long sshCheckedAt;
+    private volatile boolean sshUp;
+
+    /** An SSH server (OpenSSH, macOS Remote Login) answers on port 22 here. Cached: /api/state is polled. */
+    private boolean sshListening() {
+        long now = System.currentTimeMillis();
+        if (now - sshCheckedAt > 30_000) {
+            sshCheckedAt = now;
+            try (java.net.Socket so = new java.net.Socket()) {
+                so.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), 22), 300);
+                sshUp = true;
+            } catch (IOException e) {
+                sshUp = false;
+            }
+        }
+        return sshUp;
     }
 
     private static boolean rdpListening() {

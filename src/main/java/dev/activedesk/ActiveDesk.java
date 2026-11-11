@@ -54,6 +54,7 @@ public final class ActiveDesk {
             case "pin" -> pin();
             case "status" -> status();
             case "install-service" -> Installer.install();
+            case "uninstall" -> System.exit(dev.activedesk.power.Uninstaller.run(rest));
             case "selftest" -> System.exit(SelfTest.run() ? 0 : 1);
             case "version", "--version", "-v" -> System.out.println("ActiveDesk " + Hub.VERSION);
             default -> usage();
@@ -86,6 +87,7 @@ public final class ActiveDesk {
         switch (sub) {
             case "install" -> System.exit(dev.activedesk.power.PowerSetup.install(Config.load(), true, System.out::println));
             case "uninstall" -> System.exit(dev.activedesk.power.PowerSetup.uninstall(Config.load(), true, System.out::println));
+            case "reset", "restore" -> System.exit(dev.activedesk.power.BatteryService.reset(Config.load(), System.out::println));
             case "status" -> System.exit(local(List.of("/battery"), l -> l.startsWith("OK") || l.startsWith("ERR"), 15_000) ? 0 : 1);
             case "on", "off" -> System.exit(local(List.of("/battery " + sub), l -> l.startsWith("OK") || l.startsWith("ERR"), 15_000) ? 0 : 1);
             default -> {
@@ -114,9 +116,11 @@ public final class ActiveDesk {
                 "  activedesk power [status|mode <name|id>|brightness <1-100>|saver off|saver <below%> [dim%]]",
                 "  activedesk battery <min> <max> only charge between min% and max% while ActiveDesk runs (e.g. 40 80)",
                 "  activedesk battery on|off|status|uninstall",
+                "  activedesk battery reset       put the battery back to normal charging NOW (works even if ActiveDesk is stopped)",
                 "  activedesk pin                 set a new web PIN (old sessions keep working until 'lock')",
                 "  activedesk status              Tailscale + config summary",
                 "  activedesk install-service     start ActiveDesk automatically at login/boot",
+                "  activedesk uninstall [--yes] [--purge]  remove ActiveDesk from this computer (--purge: also your data)",
                 "  activedesk selftest            run the built-in end-to-end test"));
         System.exit(2);
     }

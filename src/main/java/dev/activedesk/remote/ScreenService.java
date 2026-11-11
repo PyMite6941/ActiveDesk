@@ -99,9 +99,18 @@ public final class ScreenService {
 
     /** JPEG of the whole desktop, scaled down to maxWidth. quality 0.1..0.95. */
     public synchronized byte[] captureJpeg(int maxWidth, float quality) throws IOException {
+        return captureJpeg(maxWidth, quality, null);
+    }
+
+    /**
+     * Same, with {@code hide} (screen coordinates, may be null) painted over: the viewer's own browser
+     * window when it runs on this computer, so the picture doesn't contain itself recursively.
+     */
+    public synchronized byte[] captureJpeg(int maxWidth, float quality, Rectangle hide) throws IOException {
         if (robot == null) throw new IOException(unavailableReason);
         Rectangle b = bounds();
         BufferedImage shot = robot.createScreenCapture(b);
+        if (hide != null && hide.intersects(b)) maskWindow(shot, b, hide);
         int w = shot.getWidth(), h = shot.getHeight();
         int tw = Math.max(320, Math.min(maxWidth, w));
         int th = (int) Math.round(h * (tw / (double) w));
@@ -123,6 +132,24 @@ public final class ScreenService {
             writer.dispose();
         }
         return bos.toByteArray();
+    }
+
+    private static void maskWindow(BufferedImage shot, Rectangle b, Rectangle hide) {
+        // the capture may be in physical pixels (HiDPI) while coordinates are logical: scale between them
+        double sx = shot.getWidth() / (double) b.width, sy = shot.getHeight() / (double) b.height;
+        Rectangle r = hide.intersection(b);
+        int x = (int) Math.round((r.x - b.x) * sx), y = (int) Math.round((r.y - b.y) * sy);
+        int w = (int) Math.round(r.width * sx), h = (int) Math.round(r.height * sy);
+        var g = shot.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setColor(new java.awt.Color(0x1e, 0x22, 0x2b));
+        g.fillRect(x, y, w, h);
+        g.setColor(new java.awt.Color(0x8b, 0x93, 0xa7));
+        g.setFont(new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, Math.max(14, Math.min(w, h) / 18)));
+        String t = "ActiveDesk (this window)";
+        var fm = g.getFontMetrics();
+        g.drawString(t, x + Math.max(8, (w - fm.stringWidth(t)) / 2), y + h / 2);
+        g.dispose();
     }
 
     /**

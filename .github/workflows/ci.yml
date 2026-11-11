@@ -52,7 +52,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: cmp install.sh docs/install.sh && cmp install.ps1 docs/install.ps1
+      - run: |
+          for f in install.sh install.ps1 uninstall.sh uninstall.ps1; do cmp "$f" "docs/$f"; done
 
   # The download installers + setup wizard, run the way a user would (minus the network download).
   installer:
@@ -85,6 +86,15 @@ jobs:
           PATH="$RUNNER_TEMP/fake:$PATH" ACTIVEDESK_JAR="$PWD/dist/activedesk.jar" sh install.sh
           "$HOME/.local/bin/activedesk" version
           grep -q 'web.pinHash=' "$ACTIVEDESK_HOME/config.properties"
+      - name: uninstall (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          "$HOME/.local/bin/activedesk" install-service
+          "$HOME/.local/bin/activedesk" uninstall --yes --purge
+          for f in "$HOME/.local/bin/activedesk" "$HOME/.local/share/activedesk" "$ACTIVEDESK_HOME" \
+                   "$HOME/.config/systemd/user/activedesk.service" "$HOME/Library/LaunchAgents/dev.activedesk.plist"; do
+            if [ -e "$f" ]; then echo "left behind: $f"; exit 1; fi
+          done
       - name: install.ps1 (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -94,6 +104,17 @@ jobs:
           Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
           & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" version
           if (-not (Select-String -Quiet 'web.pinHash=' "$env:ACTIVEDESK_HOME\config.properties")) { exit 1 }
+      - name: uninstall (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" install-service
+          & "$env:LOCALAPPDATA\ActiveDesk\activedesk.cmd" uninstall --yes --purge
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Start-Sleep -Seconds 10   # the program folder is deleted right after the uninstaller exits
+          $startup = Join-Path ([Environment]::GetFolderPath('Startup')) 'ActiveDesk.vbs'
+          foreach ($f in "$env:LOCALAPPDATA\ActiveDesk", $env:ACTIVEDESK_HOME, $startup) { if (Test-Path -LiteralPath $f) { "left behind: $f"; exit 1 } }
+          if (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains "$env:LOCALAPPDATA\ActiveDesk") { 'PATH entry left behind'; exit 1 }
 
   # install.sh on other Linux distros, each starting WITHOUT Java: the installer must get Java
   # from that distro's package manager, set up ActiveDesk, and the installed command must pass

@@ -38,13 +38,18 @@
   </section>
 
   <section>
-    <h2>Headless device? Use Tailscale SSH</h2>
+    <h2>Shell access (SSH)</h2>
     <figure>
       <img src="img/noscreen-desktop.png" alt="No-screen fallback showing a tailscale ssh command">
-      <figcaption>A device with no screen shows a Tailscale SSH command instead</figcaption>
+      <figcaption>A device with no screen opens the shell panel straight away</figcaption>
     </figure>
-    <p>If a device has no screen (a headless Pi, a server), the Screen tab offers a copyable <code>tailscale ssh user@host</code> command. From a phone, use any free SSH app (e.g. Termius) with the host and user shown&#8237;—&#8237;no password or keys to copy.</p>
-    <p>Windows can&#8217;t be a Tailscale SSH server. Turn on the built-in OpenSSH Server (Settings &#8594; System &#8594; Optional features) and use the same command with <code>ssh</code>.</p>
+    <p>Every device&#8217;s Screen tab has a <b>Shell access (SSH)</b> panel with a copyable command and the one-time step for that system. On a device with no screen (a headless Pi, a server) it is open by default.</p>
+    <ul>
+      <li><b>Linux / Pi:</b> once, <code>sudo tailscale set --ssh</code>. Then <code>tailscale ssh user@device</code>, with no passwords or keys.</li>
+      <li><b>Windows:</b> once, in an admin PowerShell, turn on the built-in OpenSSH Server: <code>Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0; Set-Service sshd -StartupType Automatic; Start-Service sshd</code>. Then <code>ssh user@100.x.y.z</code> with your Windows password.</li>
+      <li><b>macOS:</b> once, System Settings &#8594; General &#8594; Sharing &#8594; Remote Login. Then <code>ssh user@100.x.y.z</code> with the Mac&#8217;s password.</li>
+    </ul>
+    <p>From a phone, use any free SSH app (e.g. Termius) with the host and user shown. The panel says when an SSH server is already running on the device.</p>
   </section>
 
   <section>
