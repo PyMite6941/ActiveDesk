@@ -221,7 +221,7 @@ Where the firmware only has a "stop at N %" limit (ASUS, some Linux drivers), Ac
 Getting back to normal charging never depends on a reboot:
 - Switching the range off, or stopping ActiveDesk, restores normal charging within about 2 seconds. A failed restore is retried, and if it still fails the status says so.
 - Every start of ActiveDesk runs one restore pass, which repairs a limit left behind by a crash or a killed process.
-- Windows: the guard task runs at normal priority, and a new start replaces a running guard, so a slow or stuck guard can never block a restore. The task runs in the background session ("run whether the user is logged on or not"), so it never opens a window. Guards from 1.0.2 and earlier fix their own task the first time the updated guard runs.
+- Windows: the guard task runs at normal priority, and a new start replaces a running guard, so a slow or stuck guard can never block a restore. The guard is started through `conhost.exe --headless`, so it never opens a window. Guards from 1.0.2 and earlier fix their own task the first time the updated guard runs.
 - `activedesk battery reset` restores normal charging on the spot, whether or not ActiveDesk is running. If the guard task is missing or broken, it asks for admin permission once and restores directly.
 - `activedesk uninstall` and `battery uninstall` restore normal charging **before** they remove anything.
 - Linux: thresholds that existed before are saved and written back.

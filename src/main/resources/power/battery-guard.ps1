@@ -134,20 +134,24 @@ if ($null -eq $Backend) {
 # new instance restores or re-applies, so nothing is lost). Never fatal.
 try {
     $task = Get-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -ErrorAction Stop
-    if ($task.Settings.Priority -ne 4 -or "$($task.Settings.MultipleInstances)" -ne 'StopExisting') {
+    # MultipleInstances 3 = StopExisting: valid in Task Scheduler, but missing from the ScheduledTasks enum, so set raw
+    $mi = $task.Settings.CimInstanceProperties['MultipleInstances']
+    if ($task.Settings.Priority -ne 4 -or $mi.Value -ne 3) {
         $task.Settings.Priority = 4
-        $task.Settings.MultipleInstances = 'StopExisting'
+        $mi.Value = 3
         Set-ScheduledTask -InputObject $task -ErrorAction Stop | Out-Null
     }
 } catch { }
-# Same tasks ran with an Interactive logon, so every start put a PowerShell window on the desktop (hidden only
-# once PowerShell was up). S4U runs in the background session where no window can appear. Takes effect from the
-# next start. Separate try: a failure here must not undo the fix above.
+# The same tasks started powershell.exe directly, so every start put a console window on the desktop (hidden only
+# once PowerShell was up). conhost.exe --headless hosts it with no window at all (Windows 10 1809+). Takes effect
+# from the next start. Separate try: a failure here must not undo the fix above.
 try {
     $task = Get-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -ErrorAction Stop
-    if ("$($task.Principal.LogonType)" -ne 'S4U') {
-        $p = New-ScheduledTaskPrincipal -UserId $task.Principal.UserId -LogonType S4U -RunLevel Highest
-        Set-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -Principal $p -ErrorAction Stop | Out-Null
+    $act = $task.Actions | Select-Object -First 1
+    $conhost = Join-Path $env:windir 'System32\conhost.exe'
+    if ($act.Execute -eq 'powershell.exe' -and [Environment]::OSVersion.Version.Build -ge 17763 -and (Test-Path -LiteralPath $conhost)) {
+        $a = New-ScheduledTaskAction -Execute $conhost -Argument ('--headless powershell.exe ' + $act.Arguments)
+        Set-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -Action $a -ErrorAction Stop | Out-Null
     }
 } catch { }
 
