@@ -18,6 +18,10 @@
 param([Parameter(Mandatory = $true)][string]$UserHome)
 
 $ErrorActionPreference = 'Stop'
+# Task Scheduler starts tasks at priority 7 (below-normal CPU, low I/O + memory priority) and Windows throttles
+# that hard on battery: a 2-second run took 8 minutes, so 'battery off' and 'battery reset' timed out. Normal
+# priority right away; the task itself is re-registered at priority 4 further down.
+try { [Diagnostics.Process]::GetCurrentProcess().PriorityClass = 'Normal' } catch { }
 $StateDir = Join-Path $env:ProgramData 'ActiveDesk'
 $StatusFile = Join-Path $StateDir 'battery-status.json'
 $ConfigFile = Join-Path $UserHome 'config.properties'
@@ -25,7 +29,11 @@ $PidFile = Join-Path $UserHome 'node.pid'
 New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
 
 $mutex = New-Object System.Threading.Mutex($false, 'Global\ActiveDeskBatteryGuard')
-if (-not $mutex.WaitOne(0)) { exit 0 }   # already running
+# A guard ended by the task (StopExisting, schtasks /end) leaves the mutex abandoned: .NET then THROWS from
+# WaitOne although this instance now owns it. That must count as acquired, or the replacement guard would die
+# before restoring normal charging.
+$owned = try { $mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $true }
+if (-not $owned) { exit 0 }   # already running
 
 function Write-Status([hashtable]$s) {
     $s['updated'] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
@@ -117,6 +125,21 @@ if ($null -eq $Backend) {
     $mutex.ReleaseMutex()
     exit 0
 }
+
+# ------------------------------------------------------------------ task self-repair
+
+# Guards installed by ActiveDesk 1.0.2 and earlier run from a task at priority 7 that ignores a new start while
+# an old instance is alive: one slow or stuck guard then blocked every restore until a reboot. This runs
+# elevated, so it fixes its own task once: normal priority, and a new start replaces a running instance (the
+# new instance restores or re-applies, so nothing is lost). Never fatal.
+try {
+    $task = Get-ScheduledTask -TaskName 'Battery' -TaskPath '\ActiveDesk\' -ErrorAction Stop
+    if ($task.Settings.Priority -ne 4 -or "$($task.Settings.MultipleInstances)" -ne 'StopExisting') {
+        $task.Settings.Priority = 4
+        $task.Settings.MultipleInstances = 'StopExisting'
+        Set-ScheduledTask -InputObject $task -ErrorAction Stop | Out-Null
+    }
+} catch { }
 
 # ------------------------------------------------------------------ loop
 

@@ -106,7 +106,9 @@ public final class PowerSetup {
                             "  $arg = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File \"' + $dest + '\" -UserHome \"' + " + Proc.psq(home) + " + '\"'",
                             "  $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arg",
                             "  $p = New-ScheduledTaskPrincipal -UserId " + Proc.psq(user) + " -LogonType Interactive -RunLevel Highest",
-                            "  $s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew",
+                            "  $s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances StopExisting -Priority 4",
+                            "  # Priority 4 = normal: the default 7 is throttled so hard on battery that the guard missed every deadline.",
+                            "  # StopExisting: a slow or stuck guard must never block the next start (a restore).",
                             "  Register-ScheduledTask -TaskName 'Battery' -TaskPath '\\ActiveDesk\\' -Action $a -Principal $p -Settings $s -Force | Out-Null")
                           : "  # no supported charge-limit interface on this laptop: nothing else to install",
                     "  exit 0",
